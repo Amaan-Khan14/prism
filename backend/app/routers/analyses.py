@@ -8,7 +8,7 @@ import logging
 import uuid
 from typing import AsyncIterator
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +16,10 @@ from sqlalchemy.orm import selectinload
 
 from app.database import AsyncSessionLocal, get_db
 from app.ingestion import FileIngestion, GitHubIngestion
-from app.models import Analysis, AnalysisStatus, PR
+from app.models import Analysis, AnalysisStatus, Facet, FacetKind, FacetStatus, PR
 from app.schemas import AnalysisOut, CreateAnalysisRequest, CreateAnalysisResponse
 from app.storage import diff_key, get_artifact_store
+from app.review.orchestration import FACET_ORDER, execute_analysis
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ router = APIRouter(prefix="/analyses", tags=["analyses"])
 async def create_analysis(
     body: CreateAnalysisRequest,
     db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks = None,  # type: ignore[assignment]
 ) -> CreateAnalysisResponse:
     """Create a new Analysis row from a GitHub PR URL or a raw diff.
 
@@ -44,6 +46,14 @@ async def create_analysis(
     if body.github_pr_url:
         ingestion = GitHubIngestion()
         bundle = ingestion.ingest(body.github_pr_url)
+        if not bundle.diff_raw or not bundle.patches:
+            raise HTTPException(
+                status_code=501,
+                detail=(
+                    "GitHub PR fetching is not configured yet. Submit a unified "
+                    "diff directly to run an analysis."
+                ),
+            )
         pr = PR(
             github_pr_url=bundle.github_pr_url,
             title=bundle.title or None,
@@ -51,11 +61,19 @@ async def create_analysis(
         )
     else:
         ingestion = FileIngestion()
-        bundle = ingestion.ingest(
-            diff=body.diff or "",
-            title=body.title or "",
-            description=body.description or "",
-        )
+        try:
+            bundle = ingestion.ingest(
+                diff=body.diff or "",
+                title=body.title or "",
+                description=body.description or "",
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail="Invalid unified diff.") from exc
+        if not bundle.patches:
+            raise HTTPException(
+                status_code=422,
+                detail="The supplied diff contains no parseable file changes.",
+            )
         pr = PR(
             title=bundle.title or None,
             description=bundle.description or None,
@@ -84,6 +102,14 @@ async def create_analysis(
 
     analysis = Analysis(pr_id=pr.id, status=AnalysisStatus.pending)
     db.add(analysis)
+    for facet_kind in FACET_ORDER:
+        db.add(
+            Facet(
+                analysis=analysis,
+                kind=facet_kind,
+                status=FacetStatus.pending,
+            )
+        )
     try:
         await db.commit()
     except Exception:
@@ -98,6 +124,8 @@ async def create_analysis(
         raise
 
     await db.refresh(analysis)
+    if background_tasks is not None:
+        background_tasks.add_task(execute_analysis, analysis.id)
     return CreateAnalysisResponse(id=analysis.id)
 
 
@@ -165,7 +193,9 @@ async def get_analysis(
     result = await db.execute(
         select(Analysis)
         .where(Analysis.id == analysis_id)
-        .options(selectinload(Analysis.facets))
+        .options(
+            selectinload(Analysis.facets).selectinload(Facet.findings)
+        )
     )
     analysis = result.scalar_one_or_none()
     if analysis is None:
@@ -230,22 +260,51 @@ async def get_analysis_diff(
 # ---------------------------------------------------------------------------
 
 
-async def _event_generator(analysis_id: uuid.UUID) -> AsyncIterator[str]:
-    """Yield SSE-formatted events.  Currently emits a static ping then closes."""
-    ping = {"event": "ping", "analysis_id": str(analysis_id)}
-    yield f"event: ping\ndata: {json.dumps(ping)}\n\n"
-    # Simulate async work before the stream closes.
-    await asyncio.sleep(0)
-    done = {"event": "done", "analysis_id": str(analysis_id)}
-    yield f"event: done\ndata: {json.dumps(done)}\n\n"
+async def _event_generator(analysis_id: uuid.UUID, request: Request) -> AsyncIterator[str]:
+    """Poll persisted analysis state and emit progress until a terminal status."""
+    previous: str | None = None
+    while True:
+        if await request.is_disconnected():
+            return
+        async with AsyncSessionLocal() as poll_db:
+            result = await poll_db.execute(
+                select(Analysis)
+                .where(Analysis.id == analysis_id)
+                .options(selectinload(Analysis.facets))
+                .execution_options(populate_existing=True)
+            )
+            analysis = result.scalar_one_or_none()
+            if analysis is None:
+                return
+            state = {
+                "analysis_id": str(analysis.id),
+                "status": analysis.status.value,
+                "error": analysis.error,
+                "facets": [
+                    {"kind": facet.kind.value, "status": facet.status.value}
+                    for facet in sorted(analysis.facets, key=lambda item: item.kind.value)
+                ],
+            }
+            terminal = analysis.status in (AnalysisStatus.completed, AnalysisStatus.failed)
+
+        encoded = json.dumps(state)
+        if encoded != previous:
+            yield f"event: progress\ndata: {encoded}\n\n"
+            previous = encoded
+
+        if terminal:
+            yield f"event: done\ndata: {encoded}\n\n"
+            return
+        await asyncio.sleep(1)
 
 
 @router.get("/{analysis_id}/stream")
 async def stream_analysis(
     analysis_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
-    """SSE endpoint — emits a ping event to prove the streaming path works."""
+    """SSE endpoint — streams persisted analysis and facet status changes."""
     result = await db.execute(
         select(Analysis).where(Analysis.id == analysis_id)
     )
@@ -254,7 +313,7 @@ async def stream_analysis(
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     return StreamingResponse(
-        _event_generator(analysis_id),
+        _event_generator(analysis_id, request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

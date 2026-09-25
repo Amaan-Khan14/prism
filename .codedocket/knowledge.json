@@ -296,7 +296,7 @@
       "scope": [
         "."
       ],
-      "status": "active",
+      "status": "superseded",
       "evidence": [
         {
           "session": "cli",
@@ -304,7 +304,7 @@
         }
       ],
       "created": "2026-09-25T22:04:46.092388+05:30",
-      "updated": "2026-09-25T22:04:46.092388+05:30"
+      "updated": "2026-09-26T02:47:40.564794+05:30"
     },
     "pr.ingestion": {
       "key": "pr.ingestion",
@@ -422,6 +422,26 @@
       ],
       "created": "2026-09-25T21:52:25.912805+05:30",
       "updated": "2026-09-25T21:52:25.912805+05:30"
+    },
+    "runtime.review.orchestration": {
+      "key": "runtime.review.orchestration",
+      "kind": "decision",
+      "statement": "Analysis creation schedules an in-process background orchestration that computes and stores PRFacts, runs four typed review facets concurrently through the OpenAI Responses API adapter, verifies each citation against the facts, and persists citation checks with verified/unverified findings. Provider credentials come only from OPENAI_API_KEY; OPENAI_MODEL selects the model.",
+      "scope": [
+        "backend/app/models.py",
+        "backend/app/review/",
+        "backend/app/routers/analyses.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T204514Z",
+          "note": "Implemented the runtime review milestone using strict Structured Outputs and the existing ArtifactStore.",
+          "at": "2026-09-26T02:47:40.564794+05:30"
+        }
+      ],
+      "created": "2026-09-26T02:47:40.564794+05:30",
+      "updated": "2026-09-26T02:47:40.564794+05:30"
     },
     "stack.confirmed": {
       "key": "stack.confirmed",
@@ -572,5 +592,12 @@
       "updated": "2026-09-26T02:07:25.963757+05:30"
     }
   },
-  "edges": []
+  "edges": [
+    {
+      "type": "supersedes",
+      "from": "runtime.review.orchestration",
+      "to": "llm.provider",
+      "at": "2026-09-26T02:47:40.564794+05:30"
+    }
+  ]
 }

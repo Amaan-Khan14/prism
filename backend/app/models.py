@@ -14,8 +14,9 @@ from sqlalchemy import (
     Integer,
     Text,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -110,6 +111,7 @@ class Analysis(Base):
         nullable=False,
     )
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    facts_storage_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -173,6 +175,13 @@ class Finding(Base):
     )
     severity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
+    claim_type: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    citations: Mapped[list[dict]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    gate_reasons: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     citation_file: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     citation_line: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     raw_llm_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

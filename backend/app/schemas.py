@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.models import AnalysisStatus, FacetKind, FacetStatus
 
@@ -39,12 +39,28 @@ class CreateAnalysisResponse(BaseModel):
     id: uuid.UUID
 
 
+class FindingOut(BaseModel):
+    id: uuid.UUID
+    verdict: str
+    severity: int
+    summary: str
+    claim_type: Optional[str] = None
+    citation_file: Optional[str] = None
+    citation_line: Optional[int] = None
+    citations: List[dict] = Field(default_factory=list)
+    gate_reasons: List[str] = Field(default_factory=list)
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class FacetOut(BaseModel):
     id: uuid.UUID
     kind: FacetKind
     status: FacetStatus
     created_at: datetime
     updated_at: datetime
+    findings: List[FindingOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
@@ -55,6 +71,6 @@ class AnalysisOut(BaseModel):
     error: Optional[str]
     created_at: datetime
     updated_at: datetime
-    facets: List[FacetOut] = []
+    facets: List[FacetOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}

@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     aws_region: str = "ap-south-1"
     """AWS region for the S3 bucket.  Defaults to ap-south-1 (PRism bucket region)."""
 
+    # ------------------------------------------------------------------
+    # Review provider
+    # ------------------------------------------------------------------
+    openai_api_key: str = ""
+    openai_model: str = "gpt-6-astra"
+    review_request_timeout_seconds: float = 90.0
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
