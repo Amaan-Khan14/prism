@@ -1,0 +1,38 @@
+diff --git a/backend/tests/fixtures/sample_module.py b/backend/tests/fixtures/sample_module.py
+index 0000001..0000002 100644
+--- a/backend/tests/fixtures/sample_module.py
++++ b/backend/tests/fixtures/sample_module.py
+@@ -1,9 +1,20 @@
+-"""Original utility module."""
++"""Utility module — updated with DiffStats class."""
+ from __future__ import annotations
+ 
+ import hashlib
+ import logging
+-from typing import List
++from typing import Optional
+ 
+ logger = logging.getLogger(__name__)
+ 
++
++class DiffStats:
++    """Diff statistics: added and removed line counts."""
++
++    def __init__(self, added: int, removed: int) -> None:
++        self.added = added
++        self.removed = removed
++
++    @property
++    def net(self) -> int:
++        return self.added - self.removed
+diff --git a/backend/tests/fixtures/config.yaml b/backend/tests/fixtures/config.yaml
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/backend/tests/fixtures/config.yaml
+@@ -0,0 +1,5 @@
++# Sample configuration file added in this PR
++service:
++  name: prism
++  version: "0.1.0"
++  debug: false
