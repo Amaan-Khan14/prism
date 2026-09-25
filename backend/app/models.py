@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import (
+    BigInteger,
     DateTime,
     Enum,
     ForeignKey,
@@ -69,7 +70,22 @@ class PR(Base):
     github_pr_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Legacy inline diff column — kept nullable for backward compatibility with
+    # existing rows and local dev without a storage backend.  New rows store the
+    # diff via ArtifactStore and set diff=None.
     diff: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Artifact-storage references (populated when diff is stored externally)
+    diff_storage_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    """Object key within the configured ArtifactStore (e.g. ``diffs/<id>.patch``)."""
+
+    diff_size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    """Exact byte length of the stored diff."""
+
+    diff_sha256: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    """Hex SHA-256 of the diff bytes, for integrity verification."""
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

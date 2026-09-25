@@ -1,6 +1,61 @@
 {
   "version": 1,
   "knowledge": {
+    "artifact.storage": {
+      "key": "artifact.storage",
+      "kind": "constraint",
+      "statement": "Local filesystem artifact storage is for development only. Live deployments must store diffs and other durable analysis artifacts in remote private object storage, while PostgreSQL stores metadata, storage keys, checksums, sizes, and references; local and remote backends should share one storage interface.",
+      "scope": [
+        "backend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Production requirement established after identifying that instance-local files are ephemeral and service-bound.",
+          "at": "2026-09-26T00:52:48.289723+05:30"
+        }
+      ],
+      "created": "2026-09-26T00:52:48.289723+05:30",
+      "updated": "2026-09-26T00:52:48.289723+05:30"
+    },
+    "aws.resource-scope": {
+      "key": "aws.resource-scope",
+      "kind": "constraint",
+      "statement": "Limit AWS resource reads and changes for PRism to resources identified as belonging to this project. Do not modify unrelated or shared account resources.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Developer explicitly authorized AWS Agent Toolkit setup under profile prism with the boundary that cloud-service changes remain within PRism project scope.",
+          "at": "2026-09-26T01:17:51.477752+05:30"
+        }
+      ],
+      "created": "2026-09-26T01:17:51.477752+05:30",
+      "updated": "2026-09-26T01:17:51.477752+05:30"
+    },
+    "aws.s3.artifact-bucket": {
+      "key": "aws.s3.artifact-bucket",
+      "kind": "fact",
+      "statement": "PRism artifact storage is provisioned in ap-south-1 by CloudFormation stack prism-artifact-storage. Bucket prism-artifact-storage-prismartifactbucket-ubri8x7giofh is private, blocks public access, uses BucketOwnerEnforced and SSE-S3, has versioning enabled and an HTTPS-only bucket policy; backend IAM role and application configuration are still pending.",
+      "scope": [
+        "backend/",
+        "infra/aws/prism-artifacts.yaml"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Verified the deployed stack and bucket configuration after creation. This operation created only PRism's S3 bucket and bucket policy; it did not create EC2 or RDS resources.",
+          "at": "2026-09-26T01:31:50.977094+05:30"
+        }
+      ],
+      "created": "2026-09-26T01:31:50.977094+05:30",
+      "updated": "2026-09-26T01:31:50.977094+05:30"
+    },
     "bob.codex.workflow": {
       "key": "bob.codex.workflow",
       "kind": "decision",
@@ -145,6 +200,76 @@
       ],
       "created": "2026-09-25T22:37:28.061986+05:30",
       "updated": "2026-09-25T22:37:28.061986+05:30"
+    },
+    "deployment.architecture": {
+      "key": "deployment.architecture",
+      "kind": "decision",
+      "statement": "Deploy the Next.js frontend on Vercel and the FastAPI backend on AWS EC2. Use a private S3 bucket for durable PR artifacts and hosted PostgreSQL (RDS is the recommended managed option); the browser connects to the API over HTTPS for REST/SSE, and AWS secrets/roles remain server-side. Exact database service and network/domain details are still to be configured.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Developer selected this cloud split; local filesystem artifacts remain development-only.",
+          "at": "2026-09-26T00:58:44.375269+05:30"
+        }
+      ],
+      "created": "2026-09-26T00:58:44.375269+05:30",
+      "updated": "2026-09-26T00:58:44.375269+05:30"
+    },
+    "evidence.gate.contract": {
+      "key": "evidence.gate.contract",
+      "kind": "decision",
+      "statement": "The evidence gate accepts typed findings with an explicit claim type and citations, validates every citation against PRFacts, and marks a finding verified only when every citation matches the claim contract. Unsupported findings remain available in the unverified appendix; coverage-gap claims require a specific uncovered line, while unknown-coverage claims require a file-level unknown status citation.",
+      "scope": [
+        "backend/app/gate/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T204514Z",
+          "note": "Implemented deterministic pure-Python gate interfaces and validation.",
+          "at": "2026-09-26T02:28:23.894748+05:30"
+        }
+      ],
+      "created": "2026-09-26T02:28:23.894748+05:30",
+      "updated": "2026-09-26T02:28:23.894748+05:30"
+    },
+    "facts.coverage.stub": {
+      "key": "facts.coverage.stub",
+      "kind": "constraint",
+      "statement": "Coverage status is always CoverageStatus.unknown in this milestone. coverage_facts.build_coverage_facts() raises NotImplementedError if a non-None artifact is passed. A future milestone will parse Cobertura XML from a CI run verified against the PR head SHA (see coverage.provenance constraint).",
+      "scope": [
+        "backend/app/facts/coverage_facts.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T02:14:25.490789+05:30"
+        }
+      ],
+      "created": "2026-09-26T02:14:25.490789+05:30",
+      "updated": "2026-09-26T02:14:25.490789+05:30"
+    },
+    "facts.engine.design": {
+      "key": "facts.engine.design",
+      "kind": "decision",
+      "statement": "Facts engine implemented in backend/app/facts/ as four modules: models.py (immutable frozen dataclasses), diff_facts.py (line-number extraction from PRBundle), python_deps.py (stdlib AST import walker), coverage_facts.py (always-unknown stub). compute_facts() is the sole public entry point. No LLM calls; no filesystem access by default. Python source must be passed via file_source_map; absent files produce no edges.",
+      "scope": [
+        "backend/app/facts/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T02:13:56.329856+05:30"
+        }
+      ],
+      "created": "2026-09-26T02:13:56.329856+05:30",
+      "updated": "2026-09-26T02:13:56.329856+05:30"
     },
     "github.auth": {
       "key": "github.auth",
@@ -335,6 +460,116 @@
       ],
       "created": "2026-09-25T21:52:25.930979+05:30",
       "updated": "2026-09-25T21:52:25.930979+05:30"
+    },
+    "storage.artifact": {
+      "key": "storage.artifact",
+      "kind": "decision",
+      "statement": "Diffs and large artifacts are stored outside PostgreSQL via a pluggable ArtifactStore (local filesystem for dev, S3 for production). PostgreSQL holds only metadata: diff_storage_key, diff_size_bytes, diff_sha256. The backend serves artifacts through its own /analyses/{id}/diff endpoint; the S3 bucket is never made public.",
+      "scope": [
+        "backend/app/storage/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T01:38:05.280724+05:30"
+        }
+      ],
+      "created": "2026-09-26T01:38:05.280724+05:30",
+      "updated": "2026-09-26T01:38:05.280724+05:30"
+    },
+    "storage.async.s3": {
+      "key": "storage.async.s3",
+      "kind": "constraint",
+      "statement": "boto3 is synchronous; all S3 calls from FastAPI async handlers must be dispatched via asyncio.get_running_loop().run_in_executor(None, ...) — not get_event_loop(), which is deprecated inside a running loop in Python 3.10+. LocalArtifactStore calls go through the same path for consistency.",
+      "scope": [
+        "backend/app/routers/ backend/app/storage/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T01:44:11.665826+05:30"
+        },
+        {
+          "session": "cli",
+          "at": "2026-09-26T02:07:11.415863+05:30"
+        }
+      ],
+      "created": "2026-09-26T01:44:11.665826+05:30",
+      "updated": "2026-09-26T02:07:11.415863+05:30"
+    },
+    "storage.diff.legacy-fallback": {
+      "key": "storage.diff.legacy-fallback",
+      "kind": "decision",
+      "statement": "GET /analyses/{id}/diff checks diff_storage_key first (artifact store path); if NULL it falls back to the inline pr.diff column (legacy rows). If both are NULL it returns 404. This makes backward compatibility explicit and correct.",
+      "scope": [
+        "backend/app/routers/analyses.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T01:44:30.552548+05:30"
+        }
+      ],
+      "created": "2026-09-26T01:44:30.552548+05:30",
+      "updated": "2026-09-26T01:44:30.552548+05:30"
+    },
+    "storage.iam": {
+      "key": "storage.iam",
+      "kind": "constraint",
+      "statement": "The S3 bucket prism-artifact-storage-prismartifactbucket-ubri8x7giofh exists (ap-south-1, prism-artifact-storage stack) but no application IAM role is configured. Before any live deployment the runtime must have a bucket-scoped IAM role with s3:PutObject, s3:GetObject, s3:DeleteObject. AWS credentials must never enter source control; use the SDK default credential chain.",
+      "scope": [
+        "backend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T01:38:11.492346+05:30"
+        }
+      ],
+      "created": "2026-09-26T01:38:11.492346+05:30",
+      "updated": "2026-09-26T01:38:11.492346+05:30"
+    },
+    "storage.local.path-containment": {
+      "key": "storage.local.path-containment",
+      "kind": "bug",
+      "statement": "The original LocalArtifactStore._path used str.startswith for containment, which incorrectly passes sibling-prefix paths (e.g. /tmp/prism passes as prefix of /tmp/prism-evil). Fixed by using Path.relative_to() which correctly rejects any path not strictly under the root.",
+      "scope": [
+        "backend/app/storage/local.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T01:44:25.492774+05:30"
+        }
+      ],
+      "created": "2026-09-26T01:44:25.492774+05:30",
+      "updated": "2026-09-26T01:44:25.492774+05:30"
+    },
+    "storage.orphan.cleanup": {
+      "key": "storage.orphan.cleanup",
+      "kind": "decision",
+      "statement": "After db.commit() raises, a fresh DB connection confirms whether any PR row references the stored key before deleting. Outcomes: no row -\u003e delete; row found -\u003e artifact kept (commit succeeded); DB unreachable -\u003e artifact preserved, key logged at ERROR. Never delete without DB confirmation.",
+      "scope": [
+        "backend/app/routers/analyses.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T01:44:19.449637+05:30"
+        },
+        {
+          "session": "cli",
+          "at": "2026-09-26T02:07:25.963757+05:30"
+        }
+      ],
+      "created": "2026-09-26T01:44:19.449637+05:30",
+      "updated": "2026-09-26T02:07:25.963757+05:30"
     }
   },
   "edges": []

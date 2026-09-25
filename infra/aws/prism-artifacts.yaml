@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Private storage for PRism pull request artifacts — keeps large diffs out of
+  PostgreSQL and preserves artifacts across backend deployments.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: PRism backend stores large PR diffs and snapshots in S3; PostgreSQL retains metadata and object keys.
+    must:
+      - Keep all AWS resources in this template scoped to PRism.
+      - Give the backend access through a bucket-scoped IAM role when EC2 is provisioned.
+    owner: PRism
+
+Resources:
+  PrismArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Durable, private object storage keeps potentially large PR diffs and snapshots outside PostgreSQL; SSE-S3 avoids separate KMS key management for the hackathon workload.
+        must:
+          - Keep public access blocked and ACLs disabled because artifacts can contain private source code.
+          - Require HTTPS for all bucket requests.
+          - Preserve the bucket and its objects if the stack is deleted or the bucket is replaced.
+        mutable: change-with-constraints
+        mutability:
+          OwnershipControls: must-never-change
+          PublicAccessBlockConfiguration: must-never-change
+        trust: { src: authored, conf: high }
+    Properties:
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      Tags:
+        - Key: Project
+          Value: PRism
+        - Key: Purpose
+          Value: PullRequestArtifacts
+
+  PrismArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Rejects plaintext HTTP access while leaving authenticated application access to a later bucket-scoped IAM role.
+        must:
+          - Preserve the aws:SecureTransport deny statement.
+        trust: { src: authored, conf: high }
+    Properties:
+      Bucket: !Ref PrismArtifactBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt PrismArtifactBucket.Arn
+              - !Sub '${PrismArtifactBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+Outputs:
+  ArtifactsBucketName:
+    Description: Set this as the backend artifact bucket name when configuring PRism.
+    Value: !Ref PrismArtifactBucket
+  ArtifactsBucketArn:
+    Description: PRism artifact bucket ARN for the future EC2 instance role policy.
+    Value: !GetAtt PrismArtifactBucket.Arn
