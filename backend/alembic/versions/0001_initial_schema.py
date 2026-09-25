@@ -19,28 +19,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # --- enums ---
-    analysisstatus = postgresql.ENUM(
-        "pending", "running", "completed", "failed",
-        name="analysisstatus",
-    )
-    facetkind = postgresql.ENUM(
-        "intent_vs_spec", "cross_file_impact", "test_coverage_gaps", "risk_hazards",
-        name="facetkind",
-    )
-    facetstatus = postgresql.ENUM(
-        "pending", "running", "completed", "failed",
-        name="facetstatus",
-    )
-    findingverdict = postgresql.ENUM(
-        "verified", "unverified",
-        name="findingverdict",
-    )
-    analysisstatus.create(op.get_bind(), checkfirst=True)
-    facetkind.create(op.get_bind(), checkfirst=True)
-    facetstatus.create(op.get_bind(), checkfirst=True)
-    findingverdict.create(op.get_bind(), checkfirst=True)
-
     # --- prs ---
     op.create_table(
         "prs",

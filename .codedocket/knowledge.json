@@ -105,6 +105,47 @@
       "created": "2026-09-25T21:52:25.927197+05:30",
       "updated": "2026-09-25T21:52:25.927197+05:30"
     },
+    "database.local": {
+      "key": "database.local",
+      "kind": "fact",
+      "statement": "As of 2026-09-25, local Homebrew PostgreSQL 18.3 runs on localhost:5432. A dedicated non-superuser prism role and prism database now exist; backend/.env (git-ignored, mode 0600) supplies the app URL, and Alembic revision 0001 has been applied.",
+      "scope": [
+        "backend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Read-only inspection; no PostgreSQL settings or databases were changed.",
+          "at": "2026-09-25T22:33:00.111393+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Initialized at the developer's request; machine-wide PostgreSQL authentication settings were left unchanged.",
+          "at": "2026-09-25T22:37:28.057133+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:33:00.111393+05:30",
+      "updated": "2026-09-25T22:37:28.057133+05:30"
+    },
+    "database.migration.enum-creation": {
+      "key": "database.migration.enum-creation",
+      "kind": "bug",
+      "statement": "The initial Alembic migration explicitly created PostgreSQL enum types, then declared same-named sa.Enum columns that created those types again, causing DuplicateObjectError during upgrade. Removed the redundant explicit type creation so table column declarations create the enums once.",
+      "scope": [
+        "backend/alembic/versions/0001_initial_schema.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Fixed while provisioning the local PRism schema; alembic upgrade head then completed successfully.",
+          "at": "2026-09-25T22:37:28.061986+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:37:28.061986+05:30",
+      "updated": "2026-09-25T22:37:28.061986+05:30"
+    },
     "github.auth": {
       "key": "github.auth",
       "kind": "assumption",
