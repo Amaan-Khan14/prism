@@ -1,0 +1,300 @@
+{
+  "version": 1,
+  "knowledge": {
+    "bob.codex.workflow": {
+      "key": "bob.codex.workflow",
+      "kind": "decision",
+      "statement": "Use Bob IDE as the visible primary build environment for hackathon evidence: the developer drives Bob Agent/Plan modes, skills, and parallel subtasks. Codex serves as the technical driver for project architecture and implementation, with Bob as the build-time passenger/partner; work should be coordinated through shared repo files and bounded tasks, never duplicated edits.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "at": "2026-09-25T21:52:25.924421+05:30"
+        }
+      ],
+      "created": "2026-09-25T21:52:25.924421+05:30",
+      "updated": "2026-09-25T21:52:25.924421+05:30"
+    },
+    "bob.sessions.deliverable": {
+      "key": "bob.sessions.deliverable",
+      "kind": "constraint",
+      "statement": "A bob_sessions/ folder at repo root is a required hackathon deliverable. Every Bob IDE task session summary screenshot must be saved there as PNG, named clearly e.g. prism_task01_db_skeleton_summary.png. One screenshot per completed task.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-25T22:04:46.097436+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:04:46.097436+05:30",
+      "updated": "2026-09-25T22:04:46.097436+05:30"
+    },
+    "bob.skill.review-pipeline-build": {
+      "key": "bob.skill.review-pipeline-build",
+      "kind": "fact",
+      "statement": "A Bob skill file was drafted at .bob/skills/review-pipeline-build/SKILL.md covering pipeline constraints, build order, coordination rules, and what Bob sessions must not do at runtime.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-25T22:00:26.374657+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:00:26.374657+05:30",
+      "updated": "2026-09-25T22:00:26.374657+05:30"
+    },
+    "build.sequence": {
+      "key": "build.sequence",
+      "kind": "decision",
+      "statement": "Build in this order: DB/API skeleton and facts engine; evidence gate; runtime agent and fixtures; frontend with streamed progress; authored sample repo and seeded PRs; benchmark scorer; product polish; README/demo support and Bob session evidence throughout.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "at": "2026-09-25T21:52:25.921155+05:30"
+        }
+      ],
+      "created": "2026-09-25T21:52:25.921155+05:30",
+      "updated": "2026-09-25T21:52:25.921155+05:30"
+    },
+    "coverage.provenance": {
+      "key": "coverage.provenance",
+      "kind": "constraint",
+      "statement": "Coverage evidence must come from a real run and match the analyzed PR head SHA. A CI artifact is acceptable only when its workflow run is tied to that exact head SHA; otherwise run tests in an isolated environment for the authored sample repo or report coverage as unknown and emit no coverage-gap claim.",
+      "scope": [
+        "backend/facts/",
+        "backend/gate/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Bob's suggested latest Actions artifact needs exact-SHA validation.",
+          "at": "2026-09-25T22:15:09.888296+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:15:09.888296+05:30",
+      "updated": "2026-09-25T22:15:09.888296+05:30"
+    },
+    "data.provenance": {
+      "key": "data.provenance",
+      "kind": "constraint",
+      "statement": "All sample code, specs, and seeded PRs must be authored for this project; do not use client data, confidential or personal information, or scraped social-media data. Track public reference sources and check their commercial-use terms.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "at": "2026-09-25T21:52:25.927197+05:30"
+        }
+      ],
+      "created": "2026-09-25T21:52:25.927197+05:30",
+      "updated": "2026-09-25T21:52:25.927197+05:30"
+    },
+    "github.auth": {
+      "key": "github.auth",
+      "kind": "assumption",
+      "statement": "For an actual user-facing GitHub connection, prefer a GitHub App installation with minimum read-only permissions (Pull requests and Contents; Actions only if reading CI artifacts). A server GITHUB_TOKEN can support a controlled demo but is not equivalent to connecting each user's GitHub account.",
+      "scope": [
+        "backend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Refined after reviewing Bob's ingestion proposal and current GitHub App documentation.",
+          "at": "2026-09-25T22:15:09.884239+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:15:09.884239+05:30",
+      "updated": "2026-09-25T22:15:09.884239+05:30"
+    },
+    "llm.provider": {
+      "key": "llm.provider",
+      "kind": "decision",
+      "statement": "Primary LLM provider is ZAI/GLM (developer has API key). If ZAI does not support the required streaming/tool-call interface, fall back to Gemini. The thin provider adapter must be written so swapping providers requires changing only the adapter class, not the agent logic.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-25T22:04:46.092388+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:04:46.092388+05:30",
+      "updated": "2026-09-25T22:04:46.092388+05:30"
+    },
+    "pr.ingestion": {
+      "key": "pr.ingestion",
+      "kind": "decision",
+      "statement": "Hybrid ingestion confirmed by developer: accept either a GitHub PR URL (fetched via GitHub REST API with GITHUB_TOKEN) or a raw diff upload. Both paths normalise into a PRBundle struct. PR description/body is the spec for intent-vs-spec facet. Facts engine only consumes PRBundle.",
+      "scope": [
+        "backend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-25T22:11:39.658091+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Refined after reviewing Bob's ingestion proposal.",
+          "at": "2026-09-25T22:15:09.879158+05:30"
+        },
+        {
+          "session": "cli",
+          "at": "2026-09-25T22:18:31.261944+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:11:39.658091+05:30",
+      "updated": "2026-09-25T22:18:31.261944+05:30"
+    },
+    "pr.spec.source": {
+      "key": "pr.spec.source",
+      "kind": "assumption",
+      "statement": "Use the PR body as the default spec input for a fast workflow, while normalizing it into an explicit spec_text field and allowing a user-provided spec to supplement or override it. Author detailed PR bodies for seeded demo cases.",
+      "scope": [
+        "backend/",
+        "frontend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-25T22:11:44.613778+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "note": "Recommended to preserve the brief's spec comparison while supporting real PR workflows.",
+          "at": "2026-09-25T22:15:09.893034+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:11:44.613778+05:30",
+      "updated": "2026-09-25T22:15:09.893034+05:30"
+    },
+    "product.scope": {
+      "key": "product.scope",
+      "kind": "constraint",
+      "statement": "The product is a routed, database-backed multi-page website with dashboard, PR brief and evidence, benchmark impact view, live streamed new-analysis progress, and About/How it works pages. It is not an AI-only review bot or a single-page mockup.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "at": "2026-09-25T21:52:25.917309+05:30"
+        }
+      ],
+      "created": "2026-09-25T21:52:25.917309+05:30",
+      "updated": "2026-09-25T21:52:25.917309+05:30"
+    },
+    "project.identity": {
+      "key": "project.identity",
+      "kind": "fact",
+      "statement": "PRism is a hackathon product for evidence-backed code review of large or AI-generated pull requests. It aims to reduce review time and missed regressions by checking a PR against its spec, cross-file dependencies, and actual test coverage.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "at": "2026-09-25T21:52:25.902824+05:30"
+        }
+      ],
+      "created": "2026-09-25T21:52:25.902824+05:30",
+      "updated": "2026-09-25T21:52:25.902824+05:30"
+    },
+    "review.pipeline": {
+      "key": "review.pipeline",
+      "kind": "decision",
+      "statement": "PRism uses a deterministic facts engine before any LLM reasoning, then four parallel review facets, a deterministic evidence gate, and a risk-ordered reviewer brief. Exact diff lines, coverage, and dependency edges must come from executable code rather than LLM guesses.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "at": "2026-09-25T21:52:25.908094+05:30"
+        }
+      ],
+      "created": "2026-09-25T21:52:25.908094+05:30",
+      "updated": "2026-09-25T21:52:25.908094+05:30"
+    },
+    "runtime.agent": {
+      "key": "runtime.agent",
+      "kind": "constraint",
+      "statement": "The shipped runtime agent is a synchronous/streamed, provider-swappable API-backed agent, defaulting to OpenAI behind a thin adapter. IBM Bob IDE is a development-time tool and must not be a runtime dependency or a human approval/queue step.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "at": "2026-09-25T21:52:25.912805+05:30"
+        }
+      ],
+      "created": "2026-09-25T21:52:25.912805+05:30",
+      "updated": "2026-09-25T21:52:25.912805+05:30"
+    },
+    "stack.confirmed": {
+      "key": "stack.confirmed",
+      "kind": "decision",
+      "statement": "Confirmed stack: FastAPI (Python) + PostgreSQL local (SQLAlchemy async + Alembic) + Next.js 14 App Router + Tailwind CSS. LLM: ZAI/GLM primary, Gemini fallback, behind a BaseProvider adapter. stack.pending is now superseded.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-25T22:04:46.086163+05:30"
+        },
+        {
+          "session": "cli",
+          "at": "2026-09-25T22:05:38.262319+05:30"
+        }
+      ],
+      "created": "2026-09-25T22:04:46.086163+05:30",
+      "updated": "2026-09-25T22:05:38.262319+05:30"
+    },
+    "stack.pending": {
+      "key": "stack.pending",
+      "kind": "assumption",
+      "statement": "The implementation stack is intentionally undecided. Before scaffolding, propose a fast 48-hour stack for backend streaming, zero-ops relational storage, and a polished web frontend, then get the developer's confirmation.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260925T162135Z",
+          "at": "2026-09-25T21:52:25.930979+05:30"
+        }
+      ],
+      "created": "2026-09-25T21:52:25.930979+05:30",
+      "updated": "2026-09-25T21:52:25.930979+05:30"
+    }
+  },
+  "edges": []
+}
