@@ -28,9 +28,21 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Review provider
     # ------------------------------------------------------------------
+    review_provider: str = "gemini"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.1-flash-lite"
     openai_api_key: str = ""
     openai_model: str = "gpt-6-astra"
     review_request_timeout_seconds: float = 90.0
+
+    # ------------------------------------------------------------------
+    # GitHub App (read-only PR ingestion)
+    # ------------------------------------------------------------------
+    github_app_id: str = ""
+    github_private_key_path: str = ""
+    github_api_url: str = "https://api.github.com"
+    github_api_version: str = "2026-03-10"
+    github_request_timeout_seconds: float = 20.0
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

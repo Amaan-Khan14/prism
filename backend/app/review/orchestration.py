@@ -248,6 +248,11 @@ async def execute_analysis(
             inline_diff = pr.diff
             title = pr.title or ""
             description = pr.description or ""
+            github_pr_url = pr.github_pr_url
+            repo_full_name = pr.repo_full_name
+            pr_number = pr.pr_number
+            head_sha = pr.head_sha
+            base_sha = pr.base_sha
             await db.commit()
 
         store = get_artifact_store()
@@ -266,6 +271,11 @@ async def execute_analysis(
             title=title,
             description=description,
         )
+        bundle.github_pr_url = github_pr_url
+        bundle.repo_full_name = repo_full_name
+        bundle.pr_number = pr_number
+        bundle.head_sha = head_sha
+        bundle.base_sha = base_sha
         if not bundle.patches:
             raise RuntimeError("The supplied diff contains no parseable file changes.")
         facts = compute_facts(bundle)

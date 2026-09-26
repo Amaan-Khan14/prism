@@ -29,7 +29,8 @@ Examples:
 
 | # | Task description | Screenshot file | Status |
 |---|---|---|---|
-| 01 | DB/API skeleton + facts engine | — | pending |
+| 01 | DB/API skeleton + storage layer | `prism_task01_db_skeleton_summary.png` | completed |
+| 01b | Facts engine (deterministic diff + Python deps + coverage stub) | `prism_task02_facts_engine_summary.png` | completed |
 | 02 | Evidence gate | — | pending |
 | 03 | Runtime agent + fixture PRs | — | pending |
 | 04 | Frontend with streamed progress | — | pending |

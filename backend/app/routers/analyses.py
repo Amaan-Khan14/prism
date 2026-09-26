@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import AsyncSessionLocal, get_db
 from app.ingestion import FileIngestion, GitHubIngestion
+from app.ingestion.github_ingestion import GitHubIngestionError
 from app.models import Analysis, AnalysisStatus, Facet, FacetKind, FacetStatus, PR
 from app.schemas import AnalysisOut, CreateAnalysisRequest, CreateAnalysisResponse
 from app.storage import diff_key, get_artifact_store
@@ -45,17 +46,18 @@ async def create_analysis(
     """
     if body.github_pr_url:
         ingestion = GitHubIngestion()
-        bundle = ingestion.ingest(body.github_pr_url)
-        if not bundle.diff_raw or not bundle.patches:
-            raise HTTPException(
-                status_code=501,
-                detail=(
-                    "GitHub PR fetching is not configured yet. Submit a unified "
-                    "diff directly to run an analysis."
-                ),
-            )
+        try:
+            bundle = await ingestion.ingest(body.github_pr_url)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except GitHubIngestionError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
         pr = PR(
             github_pr_url=bundle.github_pr_url,
+            repo_full_name=bundle.repo_full_name,
+            pr_number=bundle.pr_number,
+            head_sha=bundle.head_sha,
+            base_sha=bundle.base_sha,
             title=bundle.title or None,
             description=bundle.description or None,
         )

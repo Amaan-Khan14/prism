@@ -69,6 +69,10 @@ class PR(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     github_pr_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    repo_full_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pr_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    head_sha: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    base_sha: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 

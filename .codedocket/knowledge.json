@@ -271,10 +271,28 @@
       "created": "2026-09-26T02:13:56.329856+05:30",
       "updated": "2026-09-26T02:13:56.329856+05:30"
     },
+    "gemini.response-schema.compatibility": {
+      "key": "gemini.response-schema.compatibility",
+      "kind": "constraint",
+      "statement": "Gemini GenerateContent responseSchema rejects additionalProperties even though PRism's OpenAI strict JSON Schema includes it. Build the provider-specific Gemini schema by recursively removing additionalProperties while retaining local parsing and deterministic citation validation.",
+      "scope": [
+        "backend/app/review/provider.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T114859Z",
+          "note": "Confirmed against the live Gemini API: unmodified schema returned 400 INVALID_ARGUMENT; Gemini-compatible schema returned HTTP 200.",
+          "at": "2026-09-26T17:40:52.943976+05:30"
+        }
+      ],
+      "created": "2026-09-26T17:40:52.943976+05:30",
+      "updated": "2026-09-26T17:40:52.943976+05:30"
+    },
     "github.auth": {
       "key": "github.auth",
-      "kind": "assumption",
-      "statement": "For an actual user-facing GitHub connection, prefer a GitHub App installation with minimum read-only permissions (Pull requests and Contents; Actions only if reading CI artifacts). A server GITHUB_TOKEN can support a controlled demo but is not equivalent to connecting each user's GitHub account.",
+      "kind": "decision",
+      "statement": "GitHub PR fetching uses a GitHub App, not a long-lived personal access token. Configure the App ID and local private-key path; mint a short-lived installation token scoped to the requested repository with read-only Pull requests and Contents permissions. Users must install the App on the repositories PRism should access.",
       "scope": [
         "backend/"
       ],
@@ -284,10 +302,15 @@
           "session": "codex-mcp-client-20260925T162135Z",
           "note": "Refined after reviewing Bob's ingestion proposal and current GitHub App documentation.",
           "at": "2026-09-25T22:15:09.884239+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T095929Z",
+          "note": "The API currently accepts a PR URL after the App is installed on its repository; an interactive per-user GitHub OAuth/connect flow is a separate future frontend/auth feature.",
+          "at": "2026-09-26T15:40:37.051622+05:30"
         }
       ],
       "created": "2026-09-25T22:15:09.884239+05:30",
-      "updated": "2026-09-25T22:15:09.884239+05:30"
+      "updated": "2026-09-26T15:40:37.051622+05:30"
     },
     "llm.provider": {
       "key": "llm.provider",
@@ -309,7 +332,7 @@
     "pr.ingestion": {
       "key": "pr.ingestion",
       "kind": "decision",
-      "statement": "Hybrid ingestion confirmed by developer: accept either a GitHub PR URL (fetched via GitHub REST API with GITHUB_TOKEN) or a raw diff upload. Both paths normalise into a PRBundle struct. PR description/body is the spec for intent-vs-spec facet. Facts engine only consumes PRBundle.",
+      "statement": "PR ingestion accepts either a GitHub PR URL or a raw diff and normalizes both to PRBundle. GitHub URL ingestion now uses a configured GitHub App installation token with repository-scoped read access to fetch PR metadata, exact head/base SHAs, and the unified diff; analysis stores this identity alongside the diff artifact.",
       "scope": [
         "backend/"
       ],
@@ -327,10 +350,15 @@
         {
           "session": "cli",
           "at": "2026-09-25T22:18:31.261944+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T095929Z",
+          "note": "Implemented in backend/app/ingestion/github_ingestion.py; migration 0004 adds persisted repository and revision metadata.",
+          "at": "2026-09-26T15:40:37.046815+05:30"
         }
       ],
       "created": "2026-09-25T22:11:39.658091+05:30",
-      "updated": "2026-09-25T22:18:31.261944+05:30"
+      "updated": "2026-09-26T15:40:37.046815+05:30"
     },
     "pr.spec.source": {
       "key": "pr.spec.source",
@@ -409,24 +437,30 @@
     "runtime.agent": {
       "key": "runtime.agent",
       "kind": "constraint",
-      "statement": "The shipped runtime agent is a synchronous/streamed, provider-swappable API-backed agent, defaulting to OpenAI behind a thin adapter. IBM Bob IDE is a development-time tool and must not be a runtime dependency or a human approval/queue step.",
+      "statement": "The shipped runtime agent is a synchronous/streamed, provider-swappable API-backed agent, defaulting to Google Gemini behind a thin adapter. IBM Bob IDE is a development-time tool and must not be a runtime dependency or human approval/queue step.",
       "scope": [
-        "."
+        ".",
+        "backend/app/review/"
       ],
       "status": "active",
       "evidence": [
         {
           "session": "codex-mcp-client-20260925T162135Z",
           "at": "2026-09-25T21:52:25.912805+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T114859Z",
+          "note": "Default provider changed from OpenAI to Gemini; OpenAI remains selectable.",
+          "at": "2026-09-26T17:35:00.628154+05:30"
         }
       ],
       "created": "2026-09-25T21:52:25.912805+05:30",
-      "updated": "2026-09-25T21:52:25.912805+05:30"
+      "updated": "2026-09-26T17:35:00.628154+05:30"
     },
     "runtime.review.orchestration": {
       "key": "runtime.review.orchestration",
       "kind": "decision",
-      "statement": "Analysis creation schedules an in-process background orchestration that computes and stores PRFacts, runs four typed review facets concurrently through the OpenAI Responses API adapter, verifies each citation against the facts, and persists citation checks with verified/unverified findings. Provider credentials come only from OPENAI_API_KEY; OPENAI_MODEL selects the model.",
+      "statement": "Analysis creation schedules in-process review orchestration that computes and stores PRFacts, runs four typed facets concurrently through the configured structured-output provider, verifies each citation against the facts, and persists verification results. Gemini is the default provider (GEMINI_API_KEY/GEMINI_MODEL); OpenAI remains optional via REVIEW_PROVIDER=openai.",
       "scope": [
         "backend/app/models.py",
         "backend/app/review/",
@@ -438,10 +472,15 @@
           "session": "codex-mcp-client-20260925T204514Z",
           "note": "Implemented the runtime review milestone using strict Structured Outputs and the existing ArtifactStore.",
           "at": "2026-09-26T02:47:40.564794+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T114859Z",
+          "note": "Updated after implementing the Gemini GenerateContent adapter and configurable provider selection.",
+          "at": "2026-09-26T17:35:00.633416+05:30"
         }
       ],
       "created": "2026-09-26T02:47:40.564794+05:30",
-      "updated": "2026-09-26T02:47:40.564794+05:30"
+      "updated": "2026-09-26T17:35:00.633416+05:30"
     },
     "stack.confirmed": {
       "key": "stack.confirmed",
