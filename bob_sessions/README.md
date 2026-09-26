@@ -25,6 +25,16 @@ Examples:
 - `prism_task05_frontend_streaming_summary.png`
 - `prism_task06_benchmark_scorer_summary.png`
 
+## Supporting task captures
+
+Prompt and context-length screenshots are supporting evidence, not completed
+task summaries. Keep them separate from the summary filenames and do not use
+them to mark a task complete.
+
+- `prism_task02_facts_engine_task_prompt.png`
+- `prism_task02_facts_engine_context_14_lines.png`
+- `prism_task02_facts_engine_context_13_lines.png`
+
 ## Task index (update as tasks are completed)
 
 | # | Task description | Screenshot file | Status |
