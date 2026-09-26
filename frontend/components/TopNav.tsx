@@ -7,9 +7,11 @@ import { useAuth } from "./AuthProvider";
 
 export function PrismLogo({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-      <path d="M16 3.5 28 26H4L16 3.5Z" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" />
-      <path d="M16 3.5v22" stroke="currentColor" strokeWidth="1.2" opacity="0.45" />
+    <svg viewBox="0 0 40 40" fill="none" className={className} aria-hidden="true">
+      <rect width="40" height="40" rx="10" fill="#b9332d" />
+      <path d="M12 30V10h10a8 8 0 0 1 0 16H12" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 19h10" stroke="white" strokeWidth="3.2" strokeLinecap="round" />
+      <path d="m23 25 6 6" stroke="#ffd0c6" strokeWidth="3.2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -22,7 +24,7 @@ export function TopNav() {
     <header className={isHome ? "marketing-header" : "border-b border-slate-200 bg-white"}>
       <div className={isHome ? "marketing-nav" : "mx-auto flex h-[68px] max-w-[1440px] items-center justify-between px-5 sm:px-8"}>
         <Link href="/" className={isHome ? "marketing-brand" : "flex items-center gap-2.5 text-slate-950"}>
-          <PrismLogo className="h-7 w-7 text-brand-500" />
+          <PrismLogo className="h-7 w-7" />
           <span className="text-[17px] font-semibold tracking-[-0.03em]">PRism</span>
         </Link>
         <nav aria-label="Main" className={isHome ? "marketing-links" : "flex items-center gap-5 text-sm"}>

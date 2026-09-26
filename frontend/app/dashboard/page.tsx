@@ -259,38 +259,48 @@ function PullRequestPicker({
   const chosenPr = pullRequests?.find((pr) => String(pr.number) === selectedPullRequest);
 
   return (
-    <section id="new-review" className="scroll-mt-24 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_14px_30px_-26px_rgba(15,23,42,0.55)]" data-testid="pr-picker">
-      <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
+    <section id="new-review" className="scroll-mt-24 overflow-hidden rounded-xl border border-[#e5ddd6] bg-white shadow-[0_14px_30px_-26px_rgba(33,29,27,0.35)]" data-testid="pr-picker">
+      <div className="border-b border-[#e5ddd6] bg-[#fbf8f3] px-5 py-4 sm:px-6">
         <h2 className="text-base font-semibold tracking-[-0.02em] text-slate-950">Start a review</h2>
         <p className="mt-1 text-xs text-slate-600">Choose a connected repository, then select an open pull request.</p>
       </div>
       <div className="p-5 sm:p-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block text-xs font-medium text-slate-600">
-          Repository
-          <select value={selectedRepository} onChange={(event) => setSelectedRepository(event.target.value)} disabled={repositoriesLoading || repositories.length === 0} className="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-slate-950 focus:outline-none">
-            <option value="">{repositoriesLoading ? "Loading repositories…" : "Select a repository"}</option>
-            {repositories.map(({ installationId, repository }) => <option key={`${installationId}:${repository.id}`} value={`${installationId}:${repository.full_name}`}>{repository.full_name}</option>)}
-          </select>
-        </label>
-        <label className="block text-xs font-medium text-slate-600">
-          Pull request
-          <select value={selectedPullRequest} onChange={(event) => setSelectedPullRequest(event.target.value)} disabled={!selected || pullRequestsLoading || !pullRequests?.length} className="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-slate-950 focus:outline-none">
-            <option value="">{pullRequestsLoading ? "Loading pull requests…" : "Select a pull request"}</option>
-            {pullRequests?.map((pr) => <option key={pr.number} value={String(pr.number)}>#{pr.number} {pr.title}{pr.draft ? " (Draft)" : ""}</option>)}
-          </select>
-        </label>
-      </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className="block min-w-0">
+            <span className="mb-2 block text-[13px] font-semibold text-slate-700">Repository</span>
+            <span className="relative block">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"><path d="M3.5 7h17v12h-17zM3.5 10h17M8 7V5h8v2" /></svg>
+              <select value={selectedRepository} onChange={(event) => setSelectedRepository(event.target.value)} disabled={repositoriesLoading || repositories.length === 0} className="block h-12 w-full min-w-0 appearance-none rounded-lg border border-[#d8cec5] bg-white pl-10 pr-10 text-sm font-medium text-slate-900 shadow-sm transition-colors hover:border-[#b9a89c] focus:border-brand-700 disabled:cursor-not-allowed disabled:bg-[#f7f3ef] disabled:text-slate-500">
+                <option value="">{repositoriesLoading ? "Loading repositories…" : "Select a repository"}</option>
+                {repositories.map(({ installationId, repository }) => <option key={`${installationId}:${repository.id}`} value={`${installationId}:${repository.full_name}`}>{repository.full_name}</option>)}
+              </select>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-700"><path d="m5 7 5 5 5-5" /></svg>
+            </span>
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-2 block text-[13px] font-semibold text-slate-700">Pull request</span>
+            <span className="relative block">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"><circle cx="6" cy="5" r="2" /><circle cx="6" cy="19" r="2" /><circle cx="18" cy="19" r="2" /><path d="M6 7v10m12 0v-5a7 7 0 0 0-7-7h-2" /></svg>
+              <select value={selectedPullRequest} onChange={(event) => setSelectedPullRequest(event.target.value)} disabled={!selected || pullRequestsLoading || !pullRequests?.length} className="block h-12 w-full min-w-0 appearance-none rounded-lg border border-[#d8cec5] bg-white pl-10 pr-10 text-sm font-medium text-slate-900 shadow-sm transition-colors hover:border-[#b9a89c] focus:border-brand-700 disabled:cursor-not-allowed disabled:bg-[#f7f3ef] disabled:text-slate-500">
+                <option value="">{pullRequestsLoading ? "Loading pull requests…" : "Select a pull request"}</option>
+                {pullRequests?.map((pr) => <option key={pr.number} value={String(pr.number)}>#{pr.number} {pr.title}{pr.draft ? " (Draft)" : ""}</option>)}
+              </select>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-700"><path d="m5 7 5 5 5-5" /></svg>
+            </span>
+          </label>
+        </div>
       {repositoriesError && <p role="alert" className="mt-3 text-sm text-rose-700">Could not load connected repositories. Try refreshing the page.</p>}
       {installations.length === 0 && <p className="mt-3 text-sm text-slate-500">Connect the GitHub App below to choose a repository.</p>}
       {repositories.length === 0 && !repositoriesLoading && !repositoriesError && installations.length > 0 && <p className="mt-3 text-sm text-slate-500">No repositories are available to this GitHub App.</p>}
       {pullRequestsError && <p role="alert" className="mt-3 text-sm text-rose-700">{pullRequestsError}</p>}
       {pullRequests?.length === 0 && <p className="mt-3 text-sm text-slate-500">No open pull requests in this repository.</p>}
       {hasMore && <p className="mt-3 text-xs text-slate-500">Showing the 100 most recently updated open pull requests.</p>}
-      {chosenPr && <a href={chosenPr.html_url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs text-slate-950 underline-offset-2 hover:underline">View #{chosenPr.number} on GitHub ↗</a>}
-      {chosenPr && <button type="button" disabled={submitting} onClick={() => void onAnalyze(chosenPr.html_url)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
-        {submitting ? <><Spinner /> Submitting…</> : "Analyze selected PR"}
-      </button>}
+      {chosenPr && <div className="mt-5 flex flex-col-reverse gap-4 border-t border-[#e5ddd6] pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <a href={chosenPr.html_url} target="_blank" rel="noreferrer" className="text-[13px] font-medium text-slate-700 underline-offset-4 hover:text-brand-700 hover:underline">View #{chosenPr.number} on GitHub ↗</a>
+        <button type="button" disabled={submitting} onClick={() => void onAnalyze(chosenPr.html_url)} className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+          {submitting ? <><Spinner /> Submitting…</> : <>Analyze selected PR <span aria-hidden="true">→</span></>}
+        </button>
+      </div>}
       {submitError && <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{submitError}</p>}
       </div>
     </section>

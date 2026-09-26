@@ -446,7 +446,7 @@
       "scope": [
         "frontend/app/benchmarks/page.tsx"
       ],
-      "status": "active",
+      "status": "superseded",
       "evidence": [
         {
           "session": "codex-mcp-client-20260926T162625Z",
@@ -455,7 +455,24 @@
         }
       ],
       "created": "2026-09-26T23:37:38.165815+05:30",
-      "updated": "2026-09-26T23:37:38.165815+05:30"
+      "updated": "2026-09-27T04:35:54.241671+05:30"
+    },
+    "frontend.benchmark-impact.removed": {
+      "key": "frontend.benchmark-impact.removed",
+      "kind": "decision",
+      "statement": "The /benchmarks frontend route and sidebar entry were removed at the user’s request; benchmark artifacts remain outside the product UI until broader results are ready.",
+      "scope": [
+        "frontend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:35:54.241671+05:30"
+        }
+      ],
+      "created": "2026-09-27T04:35:54.241671+05:30",
+      "updated": "2026-09-27T04:35:54.241671+05:30"
     },
     "frontend.build.shared-next-dir": {
       "key": "frontend.build.shared-next-dir",
@@ -560,10 +577,27 @@
       "created": "2026-09-27T01:15:55.510578+05:30",
       "updated": "2026-09-27T01:15:55.510578+05:30"
     },
+    "frontend.pr-picker.native-select-design": {
+      "key": "frontend.pr-picker.native-select-design",
+      "kind": "decision",
+      "statement": "The dashboard PR picker retains native select controls for keyboard and assistive technology behavior, with theme-matched icons, warm borders, and a coral analyze action. The PR selection and submission flow remains unchanged.",
+      "scope": [
+        "frontend/app/dashboard/page.tsx"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:35:54.288588+05:30"
+        }
+      ],
+      "created": "2026-09-27T04:35:54.288588+05:30",
+      "updated": "2026-09-27T04:35:54.288588+05:30"
+    },
     "frontend.sidebar.destinations": {
       "key": "frontend.sidebar.destinations",
-      "kind": "bug",
-      "statement": "The PRism sidebar links to purpose-specific destinations: Workspace → /dashboard, Reviews → /reviews, Repositories → /repositories, Benchmark impact → /benchmarks, and Method → /about. Review creation stays in Workspace; the Reviews page supports client-side filtering by repository, and analysis detail routes remain part of Reviews for active navigation.",
+      "kind": "decision",
+      "statement": "The PRism sidebar links to Workspace (/dashboard), Reviews (/reviews), Repositories (/repositories), and Method (/about). The Benchmark impact destination was removed from the product UI because the broader benchmark is not yet published.",
       "scope": [
         "frontend/app/dashboard/",
         "frontend/app/new-review/",
@@ -582,10 +616,14 @@
           "session": "codex-mcp-client-20260926T192834Z",
           "note": "Follow-up removed the separate /new-review page and sidebar item at the user's direction, moved review creation back under Workspace, and added a repository filter plus larger padding to review cards.",
           "at": "2026-09-27T01:10:47.084219+05:30"
+        },
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:35:54.191218+05:30"
         }
       ],
       "created": "2026-09-27T01:05:22.583853+05:30",
-      "updated": "2026-09-27T01:10:47.084219+05:30"
+      "updated": "2026-09-27T04:35:54.191218+05:30"
     },
     "frontend.stack": {
       "key": "frontend.stack",
@@ -878,7 +916,7 @@
       "scope": [
         "."
       ],
-      "status": "active",
+      "status": "superseded",
       "evidence": [
         {
           "session": "codex-mcp-client-20260925T162135Z",
@@ -886,7 +924,24 @@
         }
       ],
       "created": "2026-09-25T21:52:25.917309+05:30",
-      "updated": "2026-09-25T21:52:25.917309+05:30"
+      "updated": "2026-09-27T04:35:54.336105+05:30"
+    },
+    "product.scope.current": {
+      "key": "product.scope.current",
+      "kind": "decision",
+      "statement": "PRism remains a routed, database-backed review website with a dashboard, PR brief and evidence, live streamed analysis progress, and an About page; the benchmark impact route is removed from the product UI until publishable benchmark data exists.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:35:54.336105+05:30"
+        }
+      ],
+      "created": "2026-09-27T04:35:54.336105+05:30",
+      "updated": "2026-09-27T04:35:54.336105+05:30"
     },
     "project.identity": {
       "key": "project.identity",
@@ -1170,6 +1225,18 @@
       "from": "frontend.design.review-workbench",
       "to": "frontend.design.monochrome-light",
       "at": "2026-09-26T23:22:19.309805+05:30"
+    },
+    {
+      "type": "supersedes",
+      "from": "frontend.benchmark-impact.removed",
+      "to": "frontend.benchmark-impact.empty-state",
+      "at": "2026-09-27T04:35:54.241671+05:30"
+    },
+    {
+      "type": "supersedes",
+      "from": "product.scope.current",
+      "to": "product.scope",
+      "at": "2026-09-27T04:35:54.336105+05:30"
     }
   ]
 }
