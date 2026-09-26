@@ -8,10 +8,13 @@ from typing import List, Optional
 
 from sqlalchemy import (
     BigInteger,
+    Column,
     DateTime,
     Enum,
     ForeignKey,
     Integer,
+    LargeBinary,
+    Table,
     Text,
     func,
     text,
@@ -22,6 +25,15 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
     pass
+
+
+user_github_installations = Table(
+    "user_github_installations",
+    Base.metadata,
+    Column("user_id", UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("installation_id", BigInteger, ForeignKey("github_installations.id", ondelete="CASCADE"), primary_key=True),
+    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -60,6 +72,53 @@ class FindingVerdict(str, enum.Enum):
 # ---------------------------------------------------------------------------
 
 
+class User(Base):
+    """PRism user authenticated through the GitHub App OAuth flow."""
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    github_user_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    github_login: Mapped[str] = mapped_column(Text, nullable=False)
+    github_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    github_token_ciphertext: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    github_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    github_refresh_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    installations: Mapped[List["GitHubInstallation"]] = relationship(
+        secondary=user_github_installations, back_populates="users"
+    )
+
+
+class GitHubInstallation(Base):
+    """An installation of PRism's GitHub App on a user or organization account."""
+
+    __tablename__ = "github_installations"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    account_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    account_login: Mapped[str] = mapped_column(Text, nullable=False)
+    account_type: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    users: Mapped[List[User]] = relationship(
+        secondary=user_github_installations, back_populates="installations"
+    )
+
+
 class PR(Base):
     """Represents a pull-request input (either a GitHub URL or a raw diff)."""
 
@@ -69,6 +128,12 @@ class PR(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     github_pr_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    github_installation_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("github_installations.id", ondelete="SET NULL"), nullable=True
+    )
     repo_full_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     pr_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     head_sha: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

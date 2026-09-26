@@ -40,9 +40,23 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     github_app_id: str = ""
     github_private_key_path: str = ""
+    github_app_slug: str = "pr-review-prism"
+    github_app_client_id: str = ""
+    github_app_client_secret: str = ""
+    github_oauth_callback_url: str = ""
+    github_app_setup_url: str = ""
     github_api_url: str = "https://api.github.com"
     github_api_version: str = "2026-03-10"
     github_request_timeout_seconds: float = 20.0
+
+    # User sessions and encrypted GitHub App user tokens.
+    auth_session_secret: str = ""
+    github_token_encryption_key: str = ""
+    auth_cookie_secure: bool = True
+    auth_cookie_samesite: str = "lax"
+    auth_session_lifetime_seconds: int = 604800
+    auth_frontend_url: str = "http://localhost:3000"
+    cors_allowed_origins: list[str] = ["http://localhost:3000"]
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -17,7 +17,8 @@ from sqlalchemy.orm import selectinload
 from app.database import AsyncSessionLocal, get_db
 from app.ingestion import FileIngestion, GitHubIngestion
 from app.ingestion.github_ingestion import GitHubIngestionError
-from app.models import Analysis, AnalysisStatus, Facet, FacetKind, FacetStatus, PR
+from app.github_auth import assert_user_can_access_repo, get_current_user, get_github_user_token, require_csrf_origin
+from app.models import Analysis, AnalysisStatus, Facet, FacetKind, FacetStatus, PR, User
 from app.schemas import AnalysisOut, CreateAnalysisRequest, CreateAnalysisResponse
 from app.storage import diff_key, get_artifact_store
 from app.review.orchestration import FACET_ORDER, execute_analysis
@@ -32,9 +33,15 @@ router = APIRouter(prefix="/analyses", tags=["analyses"])
 # ---------------------------------------------------------------------------
 
 
-@router.post("", response_model=CreateAnalysisResponse, status_code=201)
+@router.post(
+    "",
+    response_model=CreateAnalysisResponse,
+    status_code=201,
+    dependencies=[Depends(require_csrf_origin)],
+)
 async def create_analysis(
     body: CreateAnalysisRequest,
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     background_tasks: BackgroundTasks = None,  # type: ignore[assignment]
 ) -> CreateAnalysisResponse:
@@ -47,13 +54,27 @@ async def create_analysis(
     if body.github_pr_url:
         ingestion = GitHubIngestion()
         try:
-            bundle = await ingestion.ingest(body.github_pr_url)
+            repo_full_name, _ = ingestion.parse_pr_url(body.github_pr_url)
+            github_token = await get_github_user_token(db, user)
+            await assert_user_can_access_repo(github_token, repo_full_name)
+            allowed_installation_ids = {installation.id for installation in user.installations}
+            if not allowed_installation_ids:
+                raise HTTPException(
+                    403,
+                    "Connect the PRism GitHub App to a repository before analyzing a pull request.",
+                )
+            bundle = await ingestion.ingest(
+                body.github_pr_url,
+                allowed_installation_ids=allowed_installation_ids,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except GitHubIngestionError as exc:
             raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
         pr = PR(
             github_pr_url=bundle.github_pr_url,
+            user_id=user.id,
+            github_installation_id=bundle.github_installation_id,
             repo_full_name=bundle.repo_full_name,
             pr_number=bundle.pr_number,
             head_sha=bundle.head_sha,
@@ -77,6 +98,7 @@ async def create_analysis(
                 detail="The supplied diff contains no parseable file changes.",
             )
         pr = PR(
+            user_id=user.id,
             title=bundle.title or None,
             description=bundle.description or None,
         )
@@ -189,12 +211,14 @@ async def _try_delete_orphaned_artifact(storage_key: str) -> None:
 @router.get("/{analysis_id}", response_model=AnalysisOut)
 async def get_analysis(
     analysis_id: uuid.UUID,
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AnalysisOut:
     """Return analysis status and any completed facets."""
     result = await db.execute(
         select(Analysis)
-        .where(Analysis.id == analysis_id)
+        .join(Analysis.pr)
+        .where(Analysis.id == analysis_id, PR.user_id == user.id)
         .options(
             selectinload(Analysis.facets).selectinload(Facet.findings)
         )
@@ -213,6 +237,7 @@ async def get_analysis(
 @router.get("/{analysis_id}/diff")
 async def get_analysis_diff(
     analysis_id: uuid.UUID,
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Return the raw unified diff for this analysis.
@@ -222,13 +247,15 @@ async def get_analysis_diff(
     ever returned.
     """
     result = await db.execute(
-        select(Analysis).where(Analysis.id == analysis_id)
+        select(Analysis)
+        .join(Analysis.pr)
+        .where(Analysis.id == analysis_id, PR.user_id == user.id)
     )
     analysis = result.scalar_one_or_none()
     if analysis is None:
         raise HTTPException(status_code=404, detail="Analysis not found")
 
-    result2 = await db.execute(select(PR).where(PR.id == analysis.pr_id))
+    result2 = await db.execute(select(PR).where(PR.id == analysis.pr_id, PR.user_id == user.id))
     pr = result2.scalar_one_or_none()
     if pr is None:
         raise HTTPException(status_code=404, detail="PR record not found")  # pragma: no cover
@@ -262,7 +289,11 @@ async def get_analysis_diff(
 # ---------------------------------------------------------------------------
 
 
-async def _event_generator(analysis_id: uuid.UUID, request: Request) -> AsyncIterator[str]:
+async def _event_generator(
+    analysis_id: uuid.UUID,
+    user_id: uuid.UUID,
+    request: Request,
+) -> AsyncIterator[str]:
     """Poll persisted analysis state and emit progress until a terminal status."""
     previous: str | None = None
     while True:
@@ -271,7 +302,8 @@ async def _event_generator(analysis_id: uuid.UUID, request: Request) -> AsyncIte
         async with AsyncSessionLocal() as poll_db:
             result = await poll_db.execute(
                 select(Analysis)
-                .where(Analysis.id == analysis_id)
+                .join(Analysis.pr)
+                .where(Analysis.id == analysis_id, PR.user_id == user_id)
                 .options(selectinload(Analysis.facets))
                 .execution_options(populate_existing=True)
             )
@@ -304,18 +336,21 @@ async def _event_generator(analysis_id: uuid.UUID, request: Request) -> AsyncIte
 async def stream_analysis(
     analysis_id: uuid.UUID,
     request: Request,
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """SSE endpoint — streams persisted analysis and facet status changes."""
     result = await db.execute(
-        select(Analysis).where(Analysis.id == analysis_id)
+        select(Analysis)
+        .join(Analysis.pr)
+        .where(Analysis.id == analysis_id, PR.user_id == user.id)
     )
     analysis = result.scalar_one_or_none()
     if analysis is None:
         raise HTTPException(status_code=404, detail="Analysis not found")
 
     return StreamingResponse(
-        _event_generator(analysis_id, request),
+        _event_generator(analysis_id, user.id, request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

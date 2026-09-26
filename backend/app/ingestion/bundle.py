@@ -49,6 +49,7 @@ class PRBundle:
     base_sha: str | None = None
     repo_full_name: str | None = None
     pr_number: int | None = None
+    github_installation_id: int | None = None
 
     @property
     def changed_files(self) -> list[str]:

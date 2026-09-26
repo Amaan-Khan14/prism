@@ -36,6 +36,46 @@ The optional OpenAI adapter can be selected with `REVIEW_PROVIDER=openai`,
 `OPENAI_API_KEY`, and `OPENAI_MODEL`. Provider calls only propose findings;
 the deterministic evidence gate still verifies every citation before storage.
 
+## GitHub sign-in and repository connections
+
+The API uses the GitHub App's user authorization flow. A successful sign-in
+creates a PRism session cookie; GitHub user and refresh tokens are encrypted
+at rest with `GITHUB_TOKEN_ENCRYPTION_KEY`. Each user connects an App
+installation. Repository analysis checks that the signed-in GitHub user can
+see the repository and that its App installation is linked to that PRism user.
+Analysis status, diff, and SSE endpoints are restricted to the PR owner.
+
+Configure these values locally. The client secret and signing keys must stay
+out of source control:
+
+```env
+GITHUB_APP_SLUG=pr-review-prism
+GITHUB_APP_CLIENT_ID=...
+GITHUB_APP_CLIENT_SECRET=...
+GITHUB_OAUTH_CALLBACK_URL=http://localhost:8000/auth/github/callback
+GITHUB_APP_SETUP_URL=http://localhost:8000/auth/github/install/callback
+AUTH_SESSION_SECRET=... # at least 32 random characters
+GITHUB_TOKEN_ENCRYPTION_KEY=... # base64 URL-safe encoding of 32 random bytes
+AUTH_COOKIE_SECURE=false # local HTTP only; set true behind HTTPS
+AUTH_COOKIE_SAMESITE=lax # use none only for cross-site frontend/API hosting, with HTTPS
+AUTH_FRONTEND_URL=http://localhost:3000
+CORS_ALLOWED_ORIGINS=["http://localhost:3000"]
+```
+
+Set the GitHub App's **User authorization callback URL** to
+`GITHUB_OAUTH_CALLBACK_URL` and its **Setup URL** to
+`GITHUB_APP_SETUP_URL`. The installation callback verifies signed state,
+checks installation visibility with the signed-in GitHub user token, and
+confirms the installation belongs to PRism's App before linking it. It never
+trusts the `installation_id` query parameter on its own.
+
+After configuring the database URL, apply migration 0005 with
+`alembic upgrade head`. The frontend can start sign-in at `GET
+/auth/github/login`, inspect the session with `GET /auth/me`, and start the
+installation flow with `GET /auth/github/install`. Sign-out is
+`POST /auth/logout`; a connected install can be removed with
+`DELETE /auth/github/installations/{installation_id}`.
+
 ## Project layout
 
 ```
@@ -47,6 +87,7 @@ backend/
 │   ├── models.py          # SQLAlchemy ORM models (PR, Analysis, Facet, Finding)
 │   ├── schemas.py         # Pydantic request/response schemas
 │   ├── routers/
+│   │   ├── auth.py        # GitHub OAuth and installation ownership
 │   │   └── analyses.py    # POST /analyses, GET /analyses/{id},
 │   │                      # GET /analyses/{id}/diff, GET /analyses/{id}/stream
 │   ├── ingestion/
@@ -78,7 +119,11 @@ backend/
 | `POST` | `/analyses` | Create analysis from `{ github_pr_url }` or `{ diff, title, description }` |
 | `GET`  | `/analyses/{id}` | Analysis status + completed facets |
 | `GET`  | `/analyses/{id}/diff` | Return the raw diff artifact (served through the backend — bucket stays private) |
-| `GET`  | `/analyses/{id}/stream` | SSE stream; emits `ping` then `done` events |
+| `GET`  | `/analyses/{id}/stream` | Owner-only SSE stream for persisted analysis and facet progress |
+| `GET`  | `/auth/github/login` | Start GitHub App sign-in |
+| `GET`  | `/auth/me` | Current PRism user and connected installations |
+| `GET`  | `/auth/github/install` | Start connecting a GitHub App installation |
+| `POST` | `/auth/logout` | Clear the PRism session cookie |
 | `GET`  | `/healthz` | Health check |
 
 ## Artifact storage

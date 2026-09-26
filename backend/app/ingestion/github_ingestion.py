@@ -111,7 +111,12 @@ class GitHubIngestion:
             raise GitHubIngestionError(502, "GitHub is temporarily unavailable. Try again shortly.")
         raise GitHubIngestionError(502, f"GitHub rejected the request (HTTP {status}).")
 
-    async def ingest(self, github_pr_url: str) -> PRBundle:
+    async def ingest(
+        self,
+        github_pr_url: str,
+        *,
+        allowed_installation_ids: set[int] | None = None,
+    ) -> PRBundle:
         """Fetch title, body, commit SHAs, and diff for a GitHub PR."""
         repo_full_name, pr_number = self.parse_pr_url(github_pr_url)
         owner, repo_name = repo_full_name.split("/", 1)
@@ -132,6 +137,11 @@ class GitHubIngestion:
                 installation_id = installation.get("id")
                 if not isinstance(installation_id, int):
                     raise GitHubIngestionError(502, "GitHub returned an invalid installation response.")
+                if allowed_installation_ids is not None and installation_id not in allowed_installation_ids:
+                    raise GitHubIngestionError(
+                        403,
+                        "Connect the GitHub App to this repository from your PRism account before analyzing it.",
+                    )
 
                 token_response = await client.post(
                     f"{api}/app/installations/{installation_id}/access_tokens",
@@ -199,4 +209,5 @@ class GitHubIngestion:
             base_sha=base.get("sha"),
             repo_full_name=repo_full_name,
             pr_number=pr_number,
+            github_installation_id=installation_id,
         )
