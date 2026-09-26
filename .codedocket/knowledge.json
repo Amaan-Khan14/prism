@@ -243,6 +243,24 @@
       "created": "2026-09-25T22:37:28.061986+05:30",
       "updated": "2026-09-25T22:37:28.061986+05:30"
     },
+    "demo-video.source-audio": {
+      "key": "demo-video.source-audio",
+      "kind": "fact",
+      "statement": "demo-video.mp4 is a 100.22-second PRism walkthrough whose source audio stream is silent; voiceover deliverables are saved separately.",
+      "scope": [
+        "demo-video.mp4"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli-20260926T233456Z",
+          "note": "demo-video.mp4 is a 100.22-second PRism walkthrough with a silent source audio stream; narration artifacts were created separately.",
+          "at": "2026-09-27T05:05:06.37281+05:30"
+        }
+      ],
+      "created": "2026-09-27T05:05:06.37281+05:30",
+      "updated": "2026-09-27T05:05:06.37281+05:30"
+    },
     "deployment.alembic.password-url": {
       "key": "deployment.alembic.password-url",
       "kind": "bug",

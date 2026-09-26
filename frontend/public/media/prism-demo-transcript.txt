@@ -1,0 +1,17 @@
+[00:00] A code review should do more than summarize a pull request. It should show what changed, why it matters, and the evidence behind each conclusion.
+
+[00:11] This is PRism, an evidence-backed review workspace that connects intent, impact, coverage, and line-level proof in one place.
+
+[00:22] Connect GitHub, select a repository and pull request, then start an analysis. PRism checks the change through a series of focused review steps.
+
+[00:34] As the review runs, each check builds toward a useful answer: what changed, where it could break, and which claims still need verification.
+
+[00:47] The findings register separates verified issues from unverified claims. Each finding includes severity and supporting evidence, so reviewers can follow the reasoning.
+
+[01:00] Open the diff to inspect the exact lines behind a finding. Coverage and test evidence show what was exercised, and where confidence is still limited.
+
+[01:12] Dependency checks can flag assumptions the repository cannot prove, keeping those items visible instead of presenting them as confirmed.
+
+[01:22] PRism also shows the review method: how facts are collected, how tests run, and how every citation is traced back to the change.
+
+[01:32] The result is a review someone else can verify, follow, and act on, with the proof kept alongside the conclusion.
