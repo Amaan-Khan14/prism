@@ -39,6 +39,21 @@ class CreateAnalysisResponse(BaseModel):
     id: uuid.UUID
 
 
+class PROut(BaseModel):
+    """PR metadata shown alongside an analysis."""
+
+    id: uuid.UUID
+    title: Optional[str] = None
+    description: Optional[str] = None
+    repo_full_name: Optional[str] = None
+    pr_number: Optional[int] = None
+    github_pr_url: Optional[str] = None
+    head_sha: Optional[str] = None
+    base_sha: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 class FindingOut(BaseModel):
     id: uuid.UUID
     verdict: str
@@ -71,6 +86,32 @@ class AnalysisOut(BaseModel):
     error: Optional[str]
     created_at: datetime
     updated_at: datetime
+    pr: PROut
+    coverage_status: Optional[str] = None
+    coverage_rejection_reason: Optional[str] = None
+    coverage_format: Optional[str] = None
+    coverage_ci_provider: Optional[str] = None
+    coverage_run_id: Optional[str] = None
+    coverage_run_attempt: Optional[str] = None
+    coverage_artifact_name: Optional[str] = None
+    coverage_commit_sha: Optional[str] = None
+    coverage_artifact_sha256: Optional[str] = None
+    coverage_parsed_at: Optional[datetime] = None
+    coverage_file_count: Optional[int] = None
+    coverage_parser_warnings: Optional[list[str]] = None
     facets: List[FacetOut] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}
+
+
+class AnalysisListItem(BaseModel):
+    """One row of the signed-in user's analysis history (GET /analyses)."""
+
+    id: uuid.UUID
+    status: AnalysisStatus
+    error: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    pr: PROut
 
     model_config = {"from_attributes": True}

@@ -13,9 +13,11 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Integer,
+    Index,
     LargeBinary,
     Table,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -181,6 +183,32 @@ class Analysis(Base):
     )
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     facts_storage_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # ------------------------------------------------------------------
+    # Coverage provenance — populated by the coverage intake pipeline.
+    # coverage_status distinguishes three states:
+    #   'accepted'  — artifact was validated and parsed successfully.
+    #   'rejected'  — artifact was supplied but failed SHA/parse checks.
+    #   'none'      — no artifact was supplied for this analysis.
+    # NULL means this analysis pre-dates coverage intake support.
+    # ------------------------------------------------------------------
+    coverage_status: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_format: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_ci_provider: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_run_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_run_attempt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_artifact_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_commit_sha: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_artifact_sha256: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    coverage_parsed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    coverage_file_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    coverage_parser_warnings: Mapped[Optional[list]] = mapped_column(
+        JSONB, nullable=True, server_default=text("'[]'::jsonb")
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -193,6 +221,31 @@ class Analysis(Base):
 
     pr: Mapped["PR"] = relationship(back_populates="analyses")
     facets: Mapped[List["Facet"]] = relationship(back_populates="analysis")
+
+
+class CoverageArtifactRecord(Base):
+    """Raw report uploaded by a trusted GitHub Actions OIDC workflow."""
+
+    __tablename__ = "coverage_artifacts"
+    __table_args__ = (
+        UniqueConstraint(
+            "repo_full_name", "commit_sha", "run_id", "run_attempt",
+            name="uq_coverage_artifacts_run",
+        ),
+        Index("ix_coverage_artifacts_repo_sha_created", "repo_full_name", "commit_sha", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    repo_full_name: Mapped[str] = mapped_column(Text, nullable=False)
+    commit_sha: Mapped[str] = mapped_column(Text, nullable=False)
+    run_id: Mapped[str] = mapped_column(Text, nullable=False)
+    run_attempt: Mapped[str] = mapped_column(Text, nullable=False)
+    workflow_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    artifact_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    format: Mapped[str] = mapped_column(Text, nullable=False)
+    artifact_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    storage_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class Facet(Base):

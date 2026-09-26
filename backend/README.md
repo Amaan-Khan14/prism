@@ -88,7 +88,7 @@ backend/
 │   ├── schemas.py         # Pydantic request/response schemas
 │   ├── routers/
 │   │   ├── auth.py        # GitHub OAuth and installation ownership
-│   │   └── analyses.py    # POST /analyses, GET /analyses/{id},
+│   │   └── analyses.py    # POST /analyses, GET /analyses, GET /analyses/{id},
 │   │                      # GET /analyses/{id}/diff, GET /analyses/{id}/stream
 │   ├── ingestion/
 │   │   ├── bundle.py      # PRBundle dataclass (normalised PR struct)
@@ -205,3 +205,53 @@ pytest tests/ -v
 ```
 
 Tests use mocks — no PostgreSQL or AWS credentials required.
+
+## GitHub Actions coverage intake
+
+Coverage reports are uploaded directly by a trusted GitHub Actions workflow.
+PRism verifies the GitHub OIDC token and takes the repository, full commit SHA,
+workflow reference, run ID, and run attempt from its signed claims. Uploads are
+accepted only for the `push` event and for workflow references in the operator
+allowlist. No GitHub App `actions:read` permission is needed.
+
+Configure the OIDC audience and trusted workflow references on the backend. The
+workflow reference supports `*` and `?` wildcards; keep the repository and
+workflow path explicit, for example:
+
+```bash
+GITHUB_ACTIONS_OIDC_AUDIENCE=prism
+GITHUB_COVERAGE_TRUSTED_WORKFLOW_REFS='["Amaan-Khan14/codedocket/.github/workflows/ci.yml@refs/heads/*"]'
+```
+
+The workflow needs `id-token: write`. After creating a supported LCOV or
+Cobertura report, it can upload the raw file like this. Codedocket's current
+Go CI does not yet produce either format or request `id-token: write`; its
+workflow must be updated in that repository before this upload can run:
+
+```yaml
+jobs:
+  coverage:
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Upload coverage to PRism
+        env:
+          PRISM_API_URL: https://prism.example.com
+        run: |
+          set -euo pipefail
+          oidc_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=prism"
+          oidc_token="$(curl -fsS -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$oidc_url" | jq -r .value)"
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${oidc_token}" \
+            -H "X-Coverage-Format: lcov" \
+            -H "X-Coverage-Artifact-Name: lcov.info" \
+            --data-binary @coverage/lcov.info \
+            "${PRISM_API_URL}/coverage-artifacts/github-actions"
+```
+
+Use a `push` workflow so the signed `sha` is the branch commit being tested.
+At analysis time PRism matches the upload to the PR's exact head SHA, verifies
+the stored artifact checksum, and only reports coverage for added diff lines.
+The report is written through the configured `ArtifactStore` (S3 when
+`STORAGE_BACKEND=s3`) and its provenance is returned with the analysis.

@@ -388,6 +388,7 @@ class TestCreateAnalysisStorageIntegration:
 
             from app.routers.analyses import create_analysis
             from app.schemas import CreateAnalysisRequest
+            from app.models import User
             import uuid
 
             body = CreateAnalysisRequest(
@@ -398,7 +399,7 @@ class TestCreateAnalysisStorageIntegration:
 
             import pytest
             with pytest.raises(Exception):
-                await create_analysis(body=body, db=db)
+                await create_analysis(body=body, db=db, user=User(id=uuid.uuid4()))
 
             db.rollback.assert_awaited()
 
@@ -417,7 +418,7 @@ class TestDiffEndpointLegacyFallback:
         import uuid
 
         from app.routers.analyses import get_analysis_diff
-        from app.models import Analysis, AnalysisStatus, PR
+        from app.models import Analysis, AnalysisStatus, PR, User
 
         pr_id = uuid.uuid4()
         analysis_id = uuid.uuid4()
@@ -438,7 +439,7 @@ class TestDiffEndpointLegacyFallback:
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=[result_analysis, result_pr])
 
-        response = await get_analysis_diff(analysis_id=analysis_id, db=db)
+        response = await get_analysis_diff(analysis_id=analysis_id, db=db, user=User(id=uuid.uuid4()))
         assert response.body == legacy_diff.encode()
         assert response.media_type == "text/x-patch"
 
@@ -449,7 +450,7 @@ class TestDiffEndpointLegacyFallback:
         import uuid
 
         from app.routers.analyses import get_analysis_diff
-        from app.models import Analysis, AnalysisStatus, PR
+        from app.models import Analysis, AnalysisStatus, PR, User
 
         pr_id = uuid.uuid4()
         analysis_id = uuid.uuid4()
@@ -466,6 +467,6 @@ class TestDiffEndpointLegacyFallback:
         db.execute = AsyncMock(side_effect=[result_analysis, result_pr])
 
         with pytest.raises(HTTPException) as exc_info:
-            await get_analysis_diff(analysis_id=analysis_id, db=db)
+            await get_analysis_diff(analysis_id=analysis_id, db=db, user=User(id=uuid.uuid4()))
         assert exc_info.value.status_code == 404
         assert "No diff available" in exc_info.value.detail

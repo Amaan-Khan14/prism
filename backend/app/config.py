@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     github_api_version: str = "2026-03-10"
     github_request_timeout_seconds: float = 20.0
 
+    # GitHub Actions OIDC coverage uploads. Keep this allowlist empty until
+    # trusted workflow references have been configured explicitly.
+    github_actions_oidc_audience: str = "prism"
+    github_coverage_trusted_workflow_refs: list[str] = []
+
     # User sessions and encrypted GitHub App user tokens.
     auth_session_secret: str = ""
     github_token_encryption_key: str = ""
