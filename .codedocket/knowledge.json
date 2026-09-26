@@ -243,6 +243,23 @@
       "created": "2026-09-25T22:37:28.061986+05:30",
       "updated": "2026-09-25T22:37:28.061986+05:30"
     },
+    "deployment.alembic.password-url": {
+      "key": "deployment.alembic.password-url",
+      "kind": "bug",
+      "statement": "Alembic config.set_main_option interpreted percent signs in URL-encoded RDS passwords as ConfigParser interpolation and printed the URL on failure. env.py now uses settings.database_url directly for migrations; the initially exposed managed password was rotated.",
+      "scope": [
+        "backend/alembic/env.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:20:32.444715+05:30"
+        }
+      ],
+      "created": "2026-09-27T04:20:32.444715+05:30",
+      "updated": "2026-09-27T04:20:32.444715+05:30"
+    },
     "deployment.architecture": {
       "key": "deployment.architecture",
       "kind": "decision",
@@ -260,6 +277,74 @@
       ],
       "created": "2026-09-26T00:58:44.375269+05:30",
       "updated": "2026-09-26T00:58:44.375269+05:30"
+    },
+    "deployment.aws.live": {
+      "key": "deployment.aws.live",
+      "kind": "decision",
+      "statement": "PRism backend is live at https://api.amaankhan.in in ap-south-1 using dedicated CloudFormation stacks prism-ip and prism-api: EC2/Nginx/Certbot, private single-AZ RDS PostgreSQL, existing private S3 bucket, and project-scoped runtime role; frontend remains on Vercel to deploy.",
+      "scope": [
+        "."
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:20:20.208806+05:30"
+        }
+      ],
+      "created": "2026-09-27T04:20:20.208806+05:30",
+      "updated": "2026-09-27T04:20:20.208806+05:30"
+    },
+    "deployment.macos.appledouble": {
+      "key": "deployment.macos.appledouble",
+      "kind": "bug",
+      "statement": "macOS tar included AppleDouble ._*.py files, which Alembic scanned as migrations and rejected due to null bytes. Build backend archives with COPYFILE_DISABLE=1 and --exclude=._*, and remove existing AppleDouble files from EC2 before restart.",
+      "scope": [
+        "infra/aws/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:20:32.486218+05:30"
+        }
+      ],
+      "created": "2026-09-27T04:20:32.486218+05:30",
+      "updated": "2026-09-27T04:20:32.486218+05:30"
+    },
+    "deployment.rds.freeplan": {
+      "key": "deployment.rds.freeplan",
+      "kind": "constraint",
+      "statement": "This AWS account free-tier plan rejected seven-day RDS backup retention; PRism uses one-day automated backups with single-AZ db.t4g.micro PostgreSQL 18.6 and 20 GiB encrypted gp3 storage.",
+      "scope": [
+        "infra/aws/prism-api.yaml"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:20:32.350279+05:30"
+        }
+      ],
+      "created": "2026-09-27T04:20:32.350279+05:30",
+      "updated": "2026-09-27T04:20:32.350279+05:30"
+    },
+    "deployment.rds.prerequisites": {
+      "key": "deployment.rds.prerequisites",
+      "kind": "fact",
+      "statement": "Provisioning PRism RDS through the scoped deployer required the RDS service-linked IAM role and DescribeKey/CreateGrant access to the account AWS-managed aws/rds KMS key; managed master password also uses the aws/secretsmanager key. These permissions are scoped in prism-deployer-bootstrap.",
+      "scope": [
+        "infra/aws/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T04:20:32.400878+05:30"
+        }
+      ],
+      "created": "2026-09-27T04:20:32.400878+05:30",
+      "updated": "2026-09-27T04:20:32.400878+05:30"
     },
     "evidence.gate.contract": {
       "key": "evidence.gate.contract",
