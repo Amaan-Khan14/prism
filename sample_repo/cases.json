@@ -1,0 +1,96 @@
+{
+  "repository": "prism-synthetic-shop",
+  "disclosure": "Authored synthetic demonstration code; no customer data or external source code.",
+  "cases": [
+    {
+      "id": "spec-mismatch",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/1",
+      "title": "Permit discounts from partner feeds",
+      "spec": "Discount rates must be between 0 and 1 inclusive. Reject any rate outside this interval before charging an order.",
+      "change": "Relax rate validation to accept partner feed discounts.",
+      "expected_issue": {
+        "id": "discount-rate-above-one",
+        "category": "spec_mismatch",
+        "description": "A rate above one passes validation and makes the order total negative.",
+        "citation_file": "src/shop/payments.py",
+        "citation_anchor": "if discount_rate < 0:"
+      },
+      "reproduction": "total_after_discount(100, 1.2) returns -20.00 instead of raising ValueError."
+    },
+    {
+      "id": "downstream-impact",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/2",
+      "title": "Normalize receipt amounts for notification templates",
+      "spec": "Order totals are dollar Decimal values. Receipt messages must show the same dollar amount charged by place_order.",
+      "change": "Convert receipt totals in the notification formatter.",
+      "expected_issue": {
+        "id": "receipt-amount-scaled-twice",
+        "category": "downstream_impact",
+        "description": "orders.place_order supplies dollars; receipt_message divides them by 100 and tells customers an amount 100 times too small.",
+        "citation_file": "src/shop/notifications.py",
+        "citation_anchor": "return f\"Order {order_id} charged ${total / 100:.2f}\""
+      },
+      "reproduction": "place_order(..., subtotal=20) charges 20.00 but the receipt says $0.20."
+    },
+    {
+      "id": "coverage-gap",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/3",
+      "title": "Handle expedited high-value payouts",
+      "spec": "An expedited payout must deduct exactly the requested amount. The daily cap applies equally to standard and expedited payouts; no additional fee is charged.",
+      "change": "Add a special path for expedited payouts above 500.",
+      "expected_issue": {
+        "id": "expedited-payout-unauthorized-fee",
+        "category": "coverage_gap",
+        "description": "The newly added high-value expedited path deducts an unauthorized 25 fee and is not exercised by the authored suite.",
+        "citation_file": "src/shop/payments.py",
+        "citation_anchor": "return money(balance) - requested - money(25)"
+      },
+      "reproduction": "settle_payout(1000, 600, 1000, expedited=True) returns 375.00 instead of 400.00."
+    },
+    {
+      "id": "transaction-atomicity",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/4",
+      "title": "Persist an order before sending its receipt",
+      "spec": "If receipt publication fails, order creation must leave no persisted order. If refund publication fails, the order must remain paid.",
+      "change": "Write order state before appending notification messages.",
+      "expected_issue": {
+        "id": "order-state-survives-notification-failure",
+        "category": "transaction",
+        "description": "The order or refund state is changed before notification append; a publication error leaves partially committed state.",
+        "citation_file": "src/shop/orders.py",
+        "citation_anchor": "orders.append(order)"
+      },
+      "reproduction": "Pass a notifications list whose append raises; place_order leaves an order in orders despite raising."
+    },
+    {
+      "id": "tenant-authorization",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/5",
+      "title": "Simplify order lookup by ID",
+      "spec": "Order lookup must enforce the caller's tenant_id, even when the order ID is valid.",
+      "change": "Use order ID as the sole lookup key.",
+      "expected_issue": {
+        "id": "cross-tenant-order-read",
+        "category": "authorization",
+        "description": "Removing the tenant predicate lets one tenant read another tenant's order by ID.",
+        "citation_file": "src/shop/auth.py",
+        "citation_anchor": "if order[\"id\"] == order_id:"
+      },
+      "reproduction": "get_order_for_user([{'id':'o-1','tenant_id':'tenant-a'}], 'o-1', 'tenant-b') returns tenant-a's order."
+    },
+    {
+      "id": "concurrent-capture",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/6",
+      "title": "Reduce time spent under the capture lock",
+      "spec": "A payment idempotency key must produce one capture record under concurrent calls. The existence check and insert are one atomic operation.",
+      "change": "Move the existence check outside the lock.",
+      "expected_issue": {
+        "id": "duplicate-capture-race",
+        "category": "concurrency",
+        "description": "Two callers can both see a missing key before either acquires the lock, then each creates a receipt and overwrites the map entry.",
+        "citation_file": "src/shop/payments.py",
+        "citation_anchor": "if idempotency_key in captures:"
+      },
+      "reproduction": "Pause two callers after the unlocked key check; both pass, then each enters the lock and constructs a different receipt."
+    }
+  ]
+}

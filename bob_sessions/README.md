@@ -31,16 +31,20 @@ Examples:
 |---|---|---|---|
 | 01 | DB/API skeleton + storage layer | `prism_task01_db_skeleton_summary.png` | completed |
 | 01b | Facts engine (deterministic diff + Python deps + coverage stub) | `prism_task02_facts_engine_summary.png` | completed |
-| 02 | Evidence gate | — | pending |
-| 03 | Runtime agent + fixture PRs | — | pending |
-| 04 | Frontend with streamed progress | — | pending |
-| 05 | Authored sample repo + seeded PRs | — | pending |
-| 06 | Benchmark scorer | — | pending |
-| 07 | Product polish | — | pending |
-| 08 | README/demo support | — | pending |
+| 02 | Evidence gate | — | completed |
+| 03 | CI coverage artifacts + exact-SHA validation (roadmap item 3) | `prism_task03_ci_coverage_sha_validation_summary.png` | completed |
+| 03b | Activate and demonstrate CI coverage upload for Codedocket PR #1 | — | blocked: Codedocket checkout/workflow is outside this workspace; upstream workflow change and hosted run required |
+| 04 | Runtime agent + fixture PRs | — | pending |
+| 05 | Frontend with streamed progress | — | pending |
+| 06 | Authored sample repo + seeded PRs | — | implementation published; Bob summary screenshot pending |
+| 07 | Benchmark scorer | — | pending |
+| 08 | Product polish | — | pending |
+| 09 | README/demo support | — | pending |
 
 ## Important
 
+- `1st-task.png` is the only PNG currently present. The named screenshots in the
+  task index still need to be captured or located before submission.
 - One screenshot per **Bob task** (not per conversation turn).
 - Capture the summary *before closing the task* — it cannot be recovered after.
 - PNG only; no HEIC, JPG, or PDF.

@@ -1,0 +1,11 @@
+diff --git a/src/shop/payments.py b/src/shop/payments.py
+index 8e9226a..65f91d3 100644
+--- a/src/shop/payments.py
++++ b/src/shop/payments.py
+@@ -21,6 +21,8 @@ def settle_payout(balance, amount, daily_cap, expedited=False):
+         raise ValueError("payout is outside the daily limit")
+     if requested > money(balance):
+         raise ValueError("insufficient balance")
++    if expedited and requested > money(500):
++        return money(balance) - requested - money(25)
+     return money(balance) - requested

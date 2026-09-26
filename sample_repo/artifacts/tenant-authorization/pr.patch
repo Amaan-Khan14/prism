@@ -1,0 +1,12 @@
+diff --git a/src/shop/auth.py b/src/shop/auth.py
+index 035b967..cc8635b 100644
+--- a/src/shop/auth.py
++++ b/src/shop/auth.py
+@@ -3,6 +3,6 @@
+ 
+ def get_order_for_user(orders, order_id, tenant_id):
+     for order in orders:
+-        if order["id"] == order_id and order["tenant_id"] == tenant_id:
++        if order["id"] == order_id:
+             return order
+     raise LookupError("order not found")

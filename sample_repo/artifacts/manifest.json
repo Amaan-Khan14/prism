@@ -1,0 +1,140 @@
+{
+  "repository": "prism-synthetic-shop",
+  "disclosure": "Authored synthetic demonstration code; no customer data or external source code.",
+  "base_branch": "main",
+  "base_sha": "c2b8028fe43885050143b5a508276030257fdd3b",
+  "cases": [
+    {
+      "id": "spec-mismatch",
+      "title": "Permit discounts from partner feeds",
+      "branch": "case/spec-mismatch",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/1",
+      "base_sha": "c2b8028fe43885050143b5a508276030257fdd3b",
+      "head_sha": "1fe4f379487d795fd872254250520b0016036134",
+      "patch": "artifacts/spec-mismatch/pr.patch",
+      "pr_body": "artifacts/spec-mismatch/pr_body.md",
+      "coverage": "artifacts/spec-mismatch/coverage.lcov",
+      "coverage_metadata": "artifacts/spec-mismatch/coverage.metadata.json",
+      "spec": "Discount rates must be between 0 and 1 inclusive. Reject any rate outside this interval before charging an order.",
+      "expected_issue": {
+        "id": "discount-rate-above-one",
+        "category": "spec_mismatch",
+        "description": "A rate above one passes validation and makes the order total negative.",
+        "citation_file": "src/shop/payments.py",
+        "citation_line": 12
+      },
+      "reproduction": "total_after_discount(100, 1.2) returns -20.00 instead of raising ValueError.",
+      "test_exit_code": 0
+    },
+    {
+      "id": "downstream-impact",
+      "title": "Normalize receipt amounts for notification templates",
+      "branch": "case/downstream-impact",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/2",
+      "base_sha": "c2b8028fe43885050143b5a508276030257fdd3b",
+      "head_sha": "8127990e6ad7a5a7abbd6f209afcf03117002207",
+      "patch": "artifacts/downstream-impact/pr.patch",
+      "pr_body": "artifacts/downstream-impact/pr_body.md",
+      "coverage": "artifacts/downstream-impact/coverage.lcov",
+      "coverage_metadata": "artifacts/downstream-impact/coverage.metadata.json",
+      "spec": "Order totals are dollar Decimal values. Receipt messages must show the same dollar amount charged by place_order.",
+      "expected_issue": {
+        "id": "receipt-amount-scaled-twice",
+        "category": "downstream_impact",
+        "description": "orders.place_order supplies dollars; receipt_message divides them by 100 and tells customers an amount 100 times too small.",
+        "citation_file": "src/shop/notifications.py",
+        "citation_line": 5
+      },
+      "reproduction": "place_order(..., subtotal=20) charges 20.00 but the receipt says $0.20.",
+      "test_exit_code": 0
+    },
+    {
+      "id": "coverage-gap",
+      "title": "Handle expedited high-value payouts",
+      "branch": "case/coverage-gap",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/3",
+      "base_sha": "c2b8028fe43885050143b5a508276030257fdd3b",
+      "head_sha": "3119ec96f1f5174621d257dd1322672369e8af8a",
+      "patch": "artifacts/coverage-gap/pr.patch",
+      "pr_body": "artifacts/coverage-gap/pr_body.md",
+      "coverage": "artifacts/coverage-gap/coverage.lcov",
+      "coverage_metadata": "artifacts/coverage-gap/coverage.metadata.json",
+      "spec": "An expedited payout must deduct exactly the requested amount. The daily cap applies equally to standard and expedited payouts; no additional fee is charged.",
+      "expected_issue": {
+        "id": "expedited-payout-unauthorized-fee",
+        "category": "coverage_gap",
+        "description": "The newly added high-value expedited path deducts an unauthorized 25 fee and is not exercised by the authored suite.",
+        "citation_file": "src/shop/payments.py",
+        "citation_line": 25
+      },
+      "reproduction": "settle_payout(1000, 600, 1000, expedited=True) returns 375.00 instead of 400.00.",
+      "test_exit_code": 0
+    },
+    {
+      "id": "transaction-atomicity",
+      "title": "Persist an order before sending its receipt",
+      "branch": "case/transaction-atomicity",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/4",
+      "base_sha": "c2b8028fe43885050143b5a508276030257fdd3b",
+      "head_sha": "8fdb6e1093ad4d9756c528fb6ce9ea2812d95600",
+      "patch": "artifacts/transaction-atomicity/pr.patch",
+      "pr_body": "artifacts/transaction-atomicity/pr_body.md",
+      "coverage": "artifacts/transaction-atomicity/coverage.lcov",
+      "coverage_metadata": "artifacts/transaction-atomicity/coverage.metadata.json",
+      "spec": "If receipt publication fails, order creation must leave no persisted order. If refund publication fails, the order must remain paid.",
+      "expected_issue": {
+        "id": "order-state-survives-notification-failure",
+        "category": "transaction",
+        "description": "The order or refund state is changed before notification append; a publication error leaves partially committed state.",
+        "citation_file": "src/shop/orders.py",
+        "citation_line": 11
+      },
+      "reproduction": "Pass a notifications list whose append raises; place_order leaves an order in orders despite raising.",
+      "test_exit_code": 0
+    },
+    {
+      "id": "tenant-authorization",
+      "title": "Simplify order lookup by ID",
+      "branch": "case/tenant-authorization",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/5",
+      "base_sha": "c2b8028fe43885050143b5a508276030257fdd3b",
+      "head_sha": "9ce468c262c0af1f5e2c3a78b5f11e2457422fb7",
+      "patch": "artifacts/tenant-authorization/pr.patch",
+      "pr_body": "artifacts/tenant-authorization/pr_body.md",
+      "coverage": "artifacts/tenant-authorization/coverage.lcov",
+      "coverage_metadata": "artifacts/tenant-authorization/coverage.metadata.json",
+      "spec": "Order lookup must enforce the caller's tenant_id, even when the order ID is valid.",
+      "expected_issue": {
+        "id": "cross-tenant-order-read",
+        "category": "authorization",
+        "description": "Removing the tenant predicate lets one tenant read another tenant's order by ID.",
+        "citation_file": "src/shop/auth.py",
+        "citation_line": 6
+      },
+      "reproduction": "get_order_for_user([{'id':'o-1','tenant_id':'tenant-a'}], 'o-1', 'tenant-b') returns tenant-a's order.",
+      "test_exit_code": 0
+    },
+    {
+      "id": "concurrent-capture",
+      "title": "Reduce time spent under the capture lock",
+      "branch": "case/concurrent-capture",
+      "github_pr_url": "https://github.com/Amaan-Khan14/prism-synthetic-shop/pull/6",
+      "base_sha": "c2b8028fe43885050143b5a508276030257fdd3b",
+      "head_sha": "e513139c79e27b57956e21bb43e772d6883143ed",
+      "patch": "artifacts/concurrent-capture/pr.patch",
+      "pr_body": "artifacts/concurrent-capture/pr_body.md",
+      "coverage": "artifacts/concurrent-capture/coverage.lcov",
+      "coverage_metadata": "artifacts/concurrent-capture/coverage.metadata.json",
+      "spec": "A payment idempotency key must produce one capture record under concurrent calls. The existence check and insert are one atomic operation.",
+      "expected_issue": {
+        "id": "duplicate-capture-race",
+        "category": "concurrency",
+        "description": "Two callers can both see a missing key before either acquires the lock, then each creates a receipt and overwrites the map entry.",
+        "citation_file": "src/shop/payments.py",
+        "citation_line": 29
+      },
+      "reproduction": "Pause two callers after the unlocked key check; both pass, then each enters the lock and constructs a different receipt.",
+      "test_exit_code": 0
+    }
+  ]
+}

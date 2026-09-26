@@ -1,0 +1,13 @@
+diff --git a/src/shop/notifications.py b/src/shop/notifications.py
+index 720faf9..0744e82 100644
+--- a/src/shop/notifications.py
++++ b/src/shop/notifications.py
+@@ -2,7 +2,7 @@
+ 
+ 
+ def receipt_message(order_id, total):
+-    return f"Order {order_id} charged ${total:.2f}"
++    return f"Order {order_id} charged ${total / 100:.2f}"
+ 
+ 
+ def refund_message(order_id, total):

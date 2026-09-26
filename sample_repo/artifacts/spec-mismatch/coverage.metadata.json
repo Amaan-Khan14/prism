@@ -1,0 +1,10 @@
+{
+  "format": "lcov",
+  "source": "local_python_trace",
+  "commit_sha": "1fe4f379487d795fd872254250520b0016036134",
+  "run_id": "local-spec-mismatch-1fe4f379487d",
+  "artifact_sha256": "91f518e8a43d1546573d77ac0bd281a4478b9a5732167a8fab6a801a84343ca5",
+  "test_exit_code": 0,
+  "test_output": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.001s\n\nOK",
+  "trust_note": "Local measured fixture. A hosted coverage upload requires a trusted GitHub Actions OIDC workflow for this exact head SHA."
+}
