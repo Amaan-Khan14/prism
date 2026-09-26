@@ -1,0 +1,24 @@
+diff --git a/src/mover.js b/src/mover.js
+index 7a2a1e0..f67c903 100644
+--- a/src/mover.js
++++ b/src/mover.js
+@@ -18,6 +18,12 @@ class Mover {
+     this.resumeAfterMs = 3000;
+     this.yieldedToUser = false;
+   }
++
++  setResumeAfterMs(delayMs) {
++    if (!Number.isFinite(delayMs) || delayMs < 0) return false;
++    this.resumeAfterMs = delayMs;
++    return true;
++  }
+ 
+   _resumeAfterUser() {
+     this.yieldedToUser = false;
+@@ -47,6 +53,6 @@ class Mover {
+     this.yieldedToUser = true;
+     this._resumeTimer = this._setTimeout(
+       () => this._resumeAfterUser(), this.resumeAfterMs,
+     );
+   }
+ }

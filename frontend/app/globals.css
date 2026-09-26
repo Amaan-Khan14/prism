@@ -68,7 +68,7 @@ body {
 .workspace-theme { background: #fbf8f3; }
 .workspace-theme aside { border-color:#e9e1da; background:#fffefa; }
 .workspace-theme header,.workspace-theme nav { border-color:#e9e1da; }
-.workspace-theme header { background:#fffefa; }
+.workspace-theme .workspace-mobile-header { background:#fffefa; }
 .workspace-theme nav { background:#fffefa; }
 .text-brand-500 { color:#ed5148; }
 .text-brand-700 { color:#b9332d; }

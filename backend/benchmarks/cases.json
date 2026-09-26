@@ -1,0 +1,116 @@
+{
+  "title": "PRism review benchmark \u00b7 pilot",
+  "scope_note": "Pilot corpus: two authored cases. Results are directional and not product-wide performance claims.",
+  "captured_at": "2026-09-27",
+  "notes": [
+    "Both updated PRism runs used the configured gemini-3.8-flash primary with gemini-3.1-flash-lite fallback; latency is one local run and includes model/API response time. The unstructured Gemini baseline is historical.",
+    "Human timed review is not measured yet. Defect precision/recall exclude non-defect metadata claims. The updated prompt no longer emits the unsupported coverage-unknown claim present in the earlier PRism run.",
+    "Updated PRism correctly cited the discount defect at src/discount.py:4. The unstructured response cited src/discount.py:1, so its defect detection was correct but its citation was not.",
+    "Added an authored timer-reconfiguration regression case. The first run missed it; after adding an explicit setting-change/in-flight-work trace and a citation anchor for the changed setting assignment, the reviewer detected it and cited src/mover.js:24 in 9.36 seconds.",
+    "The connected human-simulator#2 demo still has no supported defect: its setResumeAfterMs implementation clears and replaces the timer while the mover is running and yielded. Copilot's remaining suggestions are test/documentation advice rather than confirmed runtime bugs."
+  ],
+  "cases": [
+    {
+      "case_id": "discount-rate-bounds",
+      "patch": "cases/discount-rate-bounds.patch",
+      "spec": "Reject discount rates below 0 or above 1.",
+      "gold_issue_ids": [
+        "discount-rate-out-of-range"
+      ],
+      "gold": [
+        {
+          "issue_id": "discount-rate-out-of-range",
+          "category": "correctness",
+          "file": "src/discount.py",
+          "line": 4,
+          "description": "The implementation does not validate the stated 0..1 rate bounds, so out-of-range rates produce invalid discounts."
+        }
+      ],
+      "systems": {
+        "unstructured_gemini": {
+          "status": "measured",
+          "model": "gemini-3.1-flash-lite",
+          "elapsed_seconds": 1.552,
+          "finding_count": 1,
+          "predicted_issue_ids": [
+            "discount-rate-out-of-range"
+          ],
+          "verified_prediction_count": 0,
+          "citation_count": 1,
+          "citation_correct_count": 0,
+          "observed_citations": [
+            {
+              "file": "src/discount.py",
+              "line": 1,
+              "matches_gold": false
+            }
+          ],
+          "adjudication": "Detected the defect, but cited the function declaration instead of the faulty return line (line 4)."
+        },
+        "prism_gemini": {
+          "status": "measured",
+          "model": "gemini-3.8-flash (429); gemini-3.1-flash-lite fallback",
+          "elapsed_seconds": 6.795,
+          "finding_count": 1,
+          "predicted_issue_ids": [
+            "discount-rate-out-of-range"
+          ],
+          "verified_prediction_count": 1,
+          "citation_count": 1,
+          "citation_correct_count": 1,
+          "observed_citations": [
+            {
+              "issue_id": "discount-rate-out-of-range",
+              "file": "src/discount.py",
+              "line": 4,
+              "verdict": "verified",
+              "matches_gold": true
+            }
+          ],
+          "adjudication": "Detected and correctly cited the defect; returned one citation and no unsupported coverage status finding."
+        }
+      }
+    },
+    {
+      "case_id": "resume-timer-reconfiguration",
+      "patch": "cases/resume-timer-reconfiguration.patch",
+      "spec": "When the resume delay changes while the mover is paused for user input, replace the already-armed resume timer so the new delay takes effect immediately.",
+      "gold_issue_ids": [
+        "active-resume-timer-not-replaced"
+      ],
+      "gold": [
+        {
+          "issue_id": "active-resume-timer-not-replaced",
+          "category": "correctness",
+          "file": "src/mover.js",
+          "line": 24,
+          "description": "Changing resumeAfterMs leaves the old timeout armed, so the mover resumes on the previous delay instead of the newly selected delay."
+        }
+      ],
+      "systems": {
+        "prism_gemini": {
+          "status": "measured",
+          "model": "gemini-3.8-flash (429); gemini-3.1-flash-lite fallback",
+          "elapsed_seconds": 9.361,
+          "finding_count": 1,
+          "predicted_issue_ids": [
+            "active-resume-timer-not-replaced"
+          ],
+          "verified_prediction_count": 1,
+          "citation_count": 1,
+          "citation_correct_count": 1,
+          "observed_citations": [
+            {
+              "issue_id": "active-resume-timer-not-replaced",
+              "file": "src/mover.js",
+              "line": 24,
+              "verdict": "verified",
+              "matches_gold": true
+            }
+          ],
+          "adjudication": "After prompting an explicit before/change/completion trace and anchoring citations to the changed setting assignment, PRism detected and correctly cited the stale active timer regression."
+        }
+      }
+    }
+  ]
+}

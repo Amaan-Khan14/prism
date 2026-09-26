@@ -316,6 +316,11 @@ function InstallationsCard() {
   >({});
 
   const installations = user?.installations ?? [];
+  const installationSettingsUrl = installations.length === 1
+    ? installations[0].account_type.toLowerCase() === "organization"
+      ? `https://github.com/organizations/${encodeURIComponent(installations[0].account_login)}/settings/installations/${installations[0].id}`
+      : `https://github.com/settings/installations/${installations[0].id}`
+    : "https://github.com/settings/installations";
 
   useEffect(() => {
     let active = true;
@@ -346,15 +351,10 @@ function InstallationsCard() {
     };
   }, [installations]);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(() => {
     setConnectError(null);
     setConnecting(true);
-    const result = await startInstallationFlow();
-    if (!result.ok) {
-      setConnectError(result.error ?? "Could not start the GitHub App installation flow.");
-      setConnecting(false);
-    }
-    // On success the browser navigates to GitHub; no further state to update.
+    startInstallationFlow();
   }, []);
 
   const disconnect = useCallback(
@@ -389,16 +389,22 @@ function InstallationsCard() {
             PRism reads PRs with a read-only GitHub App installation token.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void connect()}
-          disabled={connecting}
-          data-testid="connect-github"
-          className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-950 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:opacity-60"
-        >
-          <GitHubMark className="h-4 w-4" />
-          {connecting ? "Opening GitHub…" : installations.length > 0 ? "Add repositories" : "Connect GitHub App"}
-        </button>
+        {installations.length > 0 ? (
+          <a href={installationSettingsUrl} target="_blank" rel="noreferrer" data-testid="connect-github" className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-950 transition-colors hover:border-slate-400 hover:bg-slate-50">
+            <GitHubMark className="h-4 w-4" /> Add repositories
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void connect()}
+            disabled={connecting}
+            data-testid="connect-github"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-950 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:opacity-60"
+          >
+            <GitHubMark className="h-4 w-4" />
+            {connecting ? "Opening GitHub…" : "Connect GitHub App"}
+          </button>
+        )}
       </div>
 
       {connectError && (

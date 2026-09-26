@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     review_provider: str = "gemini"
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.1-flash-lite"
+    gemini_model: str = "gemini-3.8-flash"
+    gemini_fallback_model: str = "gemini-3.1-flash-lite"
+    gemini_thinking_level: str = "high"
     openai_api_key: str = ""
     openai_model: str = "gpt-6-astra"
     review_request_timeout_seconds: float = 90.0

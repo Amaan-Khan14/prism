@@ -96,8 +96,9 @@ def _facts_to_dict(facts: PRFacts) -> dict:
 def _citation_to_dict(
     citation: EvidenceCitation,
     check: CitationCheck,
+    changed_line_text: dict[tuple[str, int], str],
 ) -> dict:
-    return {
+    result = {
         "kind": citation.kind.value,
         "file_path": citation.file_path,
         "line_number": citation.line_number,
@@ -105,6 +106,11 @@ def _citation_to_dict(
         "supported": check.supported,
         "reason": check.reason,
     }
+    if citation.line_number is not None:
+        excerpt = changed_line_text.get((citation.file_path, citation.line_number))
+        if excerpt is not None:
+            result["excerpt"] = excerpt[:500]
+    return result
 
 
 async def _mark_failed(analysis_id: uuid.UUID, message: str) -> None:
@@ -130,9 +136,24 @@ async def _review_one_facet(
     facet: FacetKind,
     facts: PRFacts,
     diff_raw: str,
+    concurrency_limit: asyncio.Semaphore | None = None,
 ) -> tuple[FacetKind, tuple[FindingCandidate, ...], Exception | None]:
     try:
-        findings = await provider.review_facet(facet, facts, diff_raw)
+        if facet is FacetKind.cross_file_impact and not facts.dependency_edges:
+            # Without deterministic dependency edges this facet has no valid
+            # evidence source, and asking the model only invites speculation.
+            return facet, (), None
+        if facet is FacetKind.test_coverage_gaps and not any(
+            item.uncovered_lines for item in facts.coverage
+        ):
+            # Unknown coverage is surfaced by the deterministic coverage panel;
+            # calling the model here used to create a repetitive pseudo-finding.
+            return facet, (), None
+        if concurrency_limit is None:
+            findings = await provider.review_facet(facet, facts, diff_raw)
+        else:
+            async with concurrency_limit:
+                findings = await provider.review_facet(facet, facts, diff_raw)
         return facet, findings, None
     except Exception as exc:
         logger.exception("review facet failed: %s", facet.value)
@@ -145,6 +166,7 @@ async def _persist_facet_result(
     findings: tuple[FindingCandidate, ...],
     facts: PRFacts,
     error: Exception | None,
+    changed_line_text: dict[tuple[str, int], str],
 ) -> None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(
@@ -166,7 +188,7 @@ async def _persist_facet_result(
         for item in gated.findings:
             candidate = item.finding
             citations = [
-                _citation_to_dict(check.citation, check)
+                _citation_to_dict(check.citation, check, changed_line_text)
                 for check in item.citation_checks
             ]
             first = candidate.citations[0] if candidate.citations else None
@@ -356,6 +378,11 @@ async def execute_analysis(
             accepted_coverage=accepted_coverage,
             rejected_coverage=rejected_coverage,
         )
+        changed_line_text = {
+            (patch.path, line_number): line_text
+            for patch in bundle.patches
+            for line_number, line_text in patch.added_lines
+        }
         facts_bytes = json.dumps(
             _facts_to_dict(facts), ensure_ascii=False, separators=(",", ":")
         ).encode("utf-8")
@@ -418,9 +445,14 @@ async def execute_analysis(
             await db.commit()
 
         active_provider = provider or get_review_provider()
+        # Keep the deep-review requests below provider burst limits while still
+        # allowing independent facets to make progress concurrently.
+        concurrency_limit = asyncio.Semaphore(2)
         tasks = [
             asyncio.create_task(
-                _review_one_facet(active_provider, facet, facts, diff_raw)
+                _review_one_facet(
+                    active_provider, facet, facts, diff_raw, concurrency_limit
+                )
             )
             for facet in FACET_ORDER
         ]
@@ -428,7 +460,8 @@ async def execute_analysis(
         for completed_task in asyncio.as_completed(tasks):
             facet_kind, candidates, error = await completed_task
             await _persist_facet_result(
-                analysis_id, facet_kind, candidates, facts, error
+                analysis_id, facet_kind, candidates, facts, error,
+                changed_line_text,
             )
             if error is not None:
                 failed_facets.append(facet_kind.value)

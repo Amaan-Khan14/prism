@@ -127,7 +127,7 @@ describe("AnalysisPage terminal states", () => {
 
     render(<AnalysisPage />);
 
-    expect(await screen.findByText("Analysis not found")).toBeInTheDocument();
+    expect(await screen.findByText("Review not found")).toBeInTheDocument();
   });
 
   it("renders partial findings with an error banner for failed analyses", async () => {

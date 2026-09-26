@@ -1,0 +1,30 @@
+[
+  {
+    "system": "prism_gemini",
+    "measured_cases": 2,
+    "tp": 2,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "evidence_verification_rate": 1.0,
+    "citation_accuracy": 1.0,
+    "mean_elapsed_seconds": 8.078,
+    "timed_cases": 2
+  },
+  {
+    "system": "unstructured_gemini",
+    "measured_cases": 1,
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "evidence_verification_rate": 0.0,
+    "citation_accuracy": 0.0,
+    "mean_elapsed_seconds": 1.552,
+    "timed_cases": 1
+  }
+]

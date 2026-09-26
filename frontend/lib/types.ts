@@ -18,6 +18,8 @@ export interface Citation {
   imported_module: string | null;
   supported: boolean;
   reason: string;
+  /** Exact added-line text, attached only when the citation points into the diff. */
+  excerpt?: string;
 }
 
 export interface Finding {

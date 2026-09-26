@@ -5,6 +5,10 @@ import { AnalysisReport } from "@/components/AnalysisReport";
 import { diffRowId } from "@/lib/diff";
 import { analysis, SAMPLE_DIFF_TEXT } from "../fixtures";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -28,7 +32,7 @@ describe("AnalysisReport", () => {
     render(<AnalysisReport analysis={analysis()} />);
 
     expect(screen.getByTestId("analysis-brief")).toHaveTextContent(
-      "verified 1 of 2 review claims",
+      "Evidence gate confirmed 1 of 2 claims.",
     );
     expect(screen.getByTestId("verified-findings")).toHaveTextContent(
       "Retry loop can mask downstream failures.",
@@ -38,7 +42,7 @@ describe("AnalysisReport", () => {
     );
   });
 
-  it("links a citation into the diff and scrolls to the row", async () => {
+  it("opens the cited row in the in-place Diff tab", async () => {
     stubDiffFetch();
     const scrollIntoView = vi.fn();
     Object.defineProperty(Element.prototype, "scrollIntoView", {
@@ -47,13 +51,14 @@ describe("AnalysisReport", () => {
     });
     render(<AnalysisReport analysis={analysis()} />);
 
-    // The diff loads asynchronously, then the citation link becomes available.
+    await userEvent.click(screen.getByRole("tab", { name: "Evidence" }));
+    await userEvent.click(screen.getByRole("button", { name: "View in diff" }));
+
+    expect(screen.getByRole("tab", { name: "Diff" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("review-diff-panel")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("diff-viewer")).toBeInTheDocument();
     });
-
-    await userEvent.click(screen.getAllByRole("button", { name: /app\/pipeline\.py:11/ })[0]);
-    // The row is expanded, then scrolled into view on the next animation frame.
     await waitFor(
       () => {
         expect(scrollIntoView).toHaveBeenCalled();
@@ -63,10 +68,11 @@ describe("AnalysisReport", () => {
     expect(document.getElementById(diffRowId("app/pipeline.py", 11))).not.toBeNull();
   });
 
-  it("shows accepted coverage provenance details", () => {
+  it("shows accepted coverage provenance details", async () => {
     stubDiffFetch();
     render(<AnalysisReport analysis={analysis()} />);
 
+    await userEvent.click(screen.getByRole("tab", { name: "Coverage" }));
     const card = screen.getByTestId("coverage-card");
     expect(card).toHaveAttribute("data-coverage-status", "accepted");
     expect(card).toHaveTextContent("Coverage artifact accepted");
@@ -76,7 +82,7 @@ describe("AnalysisReport", () => {
     expect(card).toHaveTextContent("lcov");
   });
 
-  it("communicates unknown coverage for rejected artifacts", () => {
+  it("communicates unknown coverage for rejected artifacts", async () => {
     stubDiffFetch();
     render(
       <AnalysisReport
@@ -87,6 +93,7 @@ describe("AnalysisReport", () => {
       />,
     );
 
+    await userEvent.click(screen.getByRole("tab", { name: "Coverage" }));
     const card = screen.getByTestId("coverage-card");
     expect(card).toHaveAttribute("data-coverage-status", "rejected");
     expect(card).toHaveTextContent("treated as unknown");
@@ -98,7 +105,7 @@ describe("AnalysisReport", () => {
     render(<AnalysisReport analysis={analysis({ facets: [] })} />);
 
     expect(screen.getByTestId("no-findings")).toHaveTextContent(
-      "No verified findings were produced for this change.",
+      "Nothing verified to report",
     );
     expect(screen.queryByTestId("unverified-appendix")).toBeNull();
   });

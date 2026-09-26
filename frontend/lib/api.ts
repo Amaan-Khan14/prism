@@ -128,27 +128,7 @@ export async function getAnalysisDiff(id: string): Promise<string> {
   return body;
 }
 
-/**
- * Open the GitHub App installation flow in this tab.
- *
- * The endpoint responds with a redirect, so we probe it first: an opaque
- * redirect means "navigate to GitHub"; a readable error (not configured,
- * session expired) is surfaced to the caller instead.
- */
-export async function startInstallationFlow(): Promise<{ ok: boolean; error?: string }> {
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}/auth/github/install`, {
-      credentials: "include",
-      redirect: "manual",
-    });
-  } catch {
-    return { ok: false, error: "Could not reach the PRism API. Is the backend running?" };
-  }
-  if (response.type === "opaqueredirect" || response.status === 0) {
-    window.location.assign(`${API_URL}/auth/github/install`);
-    return { ok: true };
-  }
-  const body = await response.text();
-  return { ok: false, error: detailFrom(response.status, body) };
+/** Navigate directly so the browser follows the API's cross-origin redirect to GitHub. */
+export function startInstallationFlow(): void {
+  window.location.assign(`${API_URL}/auth/github/install`);
 }

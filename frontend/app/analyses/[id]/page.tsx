@@ -33,6 +33,7 @@ export default function AnalysisPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +55,7 @@ export default function AnalysisPage() {
     return () => {
       cancelled = true;
     };
-  }, [analysisId]);
+  }, [analysisId, loadAttempt]);
 
   // Live progress while the analysis runs: SSE first, polling as fallback.
   const isLive = analysis !== null && (analysis.status === "pending" || analysis.status === "running");
@@ -112,10 +113,10 @@ export default function AnalysisPage() {
           It may belong to a different account, or the link is wrong.
         </p>
         <Link
-          href="/dashboard"
-          className="mt-6 inline-block rounded-full bg-zinc-950 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+          href="/reviews"
+          className="mt-6 inline-flex rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-800"
         >
-          Back to Overview
+          Back to reviews
         </Link>
       </div>
     );
@@ -125,9 +126,14 @@ export default function AnalysisPage() {
     return (
       <div className="rounded-xl border border-rose-200 bg-rose-50 px-6 py-10 text-center" data-testid="load-error">
         <p className="text-sm text-rose-700">{loadError}</p>
-        <Link href="/dashboard" className="mt-4 inline-block text-sm text-zinc-950 underline-offset-2 hover:underline">
-          Back to Overview
-        </Link>
+        <div className="mt-4 flex flex-wrap justify-center gap-4">
+          <button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)} className="rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-800">
+            Retry loading review
+          </button>
+          <Link href="/reviews" className="inline-flex items-center text-sm font-medium text-slate-800 underline underline-offset-2 hover:text-brand-800">
+            Back to reviews
+          </Link>
+        </div>
       </div>
     );
   }

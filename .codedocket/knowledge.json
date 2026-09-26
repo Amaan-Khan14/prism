@@ -1,6 +1,25 @@
 {
   "version": 1,
   "knowledge": {
+    "api.analyses-list": {
+      "key": "api.analyses-list",
+      "kind": "decision",
+      "statement": "GET /analyses (limit\u003c=200, newest first, owner-scoped via PR.user_id) and a `pr` block (PROut) on GET /analyses/{id} were added as the smallest backend change needed for the dashboard history and analysis header. Both are additive; no migration was required.",
+      "scope": [
+        "backend/app/routers/analyses.py",
+        "backend/app/schemas.py",
+        "frontend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "zcode-20260926T141026Z",
+          "at": "2026-09-26T20:44:35.603515+05:30"
+        }
+      ],
+      "created": "2026-09-26T20:44:35.603515+05:30",
+      "updated": "2026-09-26T20:44:35.603515+05:30"
+    },
     "artifact.storage": {
       "key": "artifact.storage",
       "kind": "constraint",
@@ -55,6 +74,29 @@
       ],
       "created": "2026-09-26T01:31:50.977094+05:30",
       "updated": "2026-09-26T01:31:50.977094+05:30"
+    },
+    "benchmark.pilot.scorer": {
+      "key": "benchmark.pilot.scorer",
+      "kind": "fact",
+      "statement": "The authored benchmark now contains a discount-boundary defect and a stale active-timer regression, scored by exact issue labels, evidence verification, citation accuracy, and latency. PRism measured both defects with correct citations after a targeted risk-prompt change; results remain directional because the corpus is small and human timing is not measured.",
+      "scope": [
+        "backend/benchmarks"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli-20260926T203620Z",
+          "note": "PRism now has a one-case benchmark pilot with exact issue-label scoring, citations, evidence-gate rate, and measured latency; expand the sample corpus before broad performance claims. The local prism database was reset to empty application tables at Alembic 0007.",
+          "at": "2026-09-27T02:06:31.490691+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "The timer case first exposed a false negative, then passed after the prompt required tracing changed settings against in-flight work. Latest review of human-simulator#2 remained correctly empty because the actual patch clears and re-arms the timer.",
+          "at": "2026-09-27T02:47:54.203832+05:30"
+        }
+      ],
+      "created": "2026-09-27T02:06:31.490691+05:30",
+      "updated": "2026-09-27T02:47:54.203832+05:30"
     },
     "bob.codex.workflow": {
       "key": "bob.codex.workflow",
@@ -237,6 +279,23 @@
       "created": "2026-09-26T02:28:23.894748+05:30",
       "updated": "2026-09-26T02:28:23.894748+05:30"
     },
+    "facts.coverage.implementation": {
+      "key": "facts.coverage.implementation",
+      "kind": "decision",
+      "statement": "Coverage facts are now fully implemented (supersedes facts.coverage.stub). LCOV and Cobertura XML parsers in coverage_parsers.py; SHA acceptance gate and provenance in coverage_intake.py; build_coverage_facts() validates artifacts via accept_coverage(). Files remain unknown when no artifact, SHA mismatches, or parse fails. Migration 0006 adds coverage provenance columns to the analyses table.",
+      "scope": [
+        "backend/app/facts/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T18:28:44.861776+05:30"
+        }
+      ],
+      "created": "2026-09-26T18:28:44.861776+05:30",
+      "updated": "2026-09-26T18:28:44.861776+05:30"
+    },
     "facts.coverage.stub": {
       "key": "facts.coverage.stub",
       "kind": "constraint",
@@ -244,7 +303,7 @@
       "scope": [
         "backend/app/facts/coverage_facts.py"
       ],
-      "status": "active",
+      "status": "superseded",
       "evidence": [
         {
           "session": "cli",
@@ -252,7 +311,7 @@
         }
       ],
       "created": "2026-09-26T02:14:25.490789+05:30",
-      "updated": "2026-09-26T02:14:25.490789+05:30"
+      "updated": "2026-09-26T18:28:44.861776+05:30"
     },
     "facts.engine.design": {
       "key": "facts.engine.design",
@@ -270,6 +329,215 @@
       ],
       "created": "2026-09-26T02:13:56.329856+05:30",
       "updated": "2026-09-26T02:13:56.329856+05:30"
+    },
+    "frontend.analysis-detail.review-report": {
+      "key": "frontend.analysis-detail.review-report",
+      "kind": "bug",
+      "statement": "The analysis report uses in-place Findings, Evidence, Coverage, and Diff tabs within one bounded report panel. Selecting a verified finding opens its evidence tab, citation actions switch to Diff and focus the cited file/line, and coverage provenance opens the Coverage tab; no sticky evidence inspector or hash-jump navigation remains.",
+      "scope": [
+        "frontend/app/analyses/[id]/page.tsx",
+        "frontend/components/AnalysisReport.tsx"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "Observed on the supplied completed review: long raw Markdown dominated the first viewport, while the evidence inspector was positioned beside the PR header. Verified the closed/open description behavior in the browser.",
+          "at": "2026-09-27T01:33:13.433267+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "Verified in the browser that each tab changes content without changing the review URL; an unverified appendix citation also opened Diff with its file expanded.",
+          "at": "2026-09-27T01:44:39.538973+05:30"
+        }
+      ],
+      "created": "2026-09-27T01:33:13.433267+05:30",
+      "updated": "2026-09-27T01:44:39.538973+05:30"
+    },
+    "frontend.benchmark-impact.empty-state": {
+      "key": "frontend.benchmark-impact.empty-state",
+      "kind": "fact",
+      "statement": "No published benchmark results or benchmark API data are available in the current frontend, so Benchmark impact presents a clear empty state and describes only outcomes PRism will report when measured data exists.",
+      "scope": [
+        "frontend/app/benchmarks/page.tsx"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T162625Z",
+          "note": "Added Benchmark impact to the authenticated workspace sidebar as part of the SaaS UI redesign without inventing numeric outcomes.",
+          "at": "2026-09-26T23:37:38.165815+05:30"
+        }
+      ],
+      "created": "2026-09-26T23:37:38.165815+05:30",
+      "updated": "2026-09-26T23:37:38.165815+05:30"
+    },
+    "frontend.build.shared-next-dir": {
+      "key": "frontend.build.shared-next-dir",
+      "kind": "constraint",
+      "statement": "Only one Next.js process may own frontend/.next at a time: a parallel session running next dev together with next build or next start corrupts generated chunks and can yield missing-module HTTP 500 errors. Preview against the existing :3000 dev server, or stop and coordinate the owning server before building.",
+      "scope": [
+        "frontend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "zcode-20260926T160126Z",
+          "note": "Two sessions ran concurrently on frontend/: a parallel session's `next dev` on :3000 shares the .next dir, so a `next build` + `next start` from another session can corrupt the production bundle (missing ./682.js chunks, HTTP 500). Preview against the running dev server or coordinate builds; dashboard/page.tsx also gained a PullRequestPicker mid-session that had to be preserved.",
+          "at": "2026-09-26T21:54:12.469302+05:30"
+        },
+        {
+          "session": "cli",
+          "note": "Observed Cannot find module ./682.js from webpack-runtime. Stopping the exact dev process, moving the stale .next cache aside, and restarting dev regenerated valid routes.",
+          "at": "2026-09-26T23:44:55.797231+05:30"
+        }
+      ],
+      "created": "2026-09-26T21:54:12.469302+05:30",
+      "updated": "2026-09-26T23:44:55.797231+05:30"
+    },
+    "frontend.design.color-theme": {
+      "key": "frontend.design.color-theme",
+      "kind": "decision",
+      "statement": "PRism’s public landing page and signed-in workspace share a Brainfloss-inspired palette of warm off-white surfaces, dark ink, deep coral controls (#b9332d), and bright coral display/logo highlights (#ed5148); green, amber, and red/rose remain reserved for review semantics.",
+      "scope": [
+        "frontend/app/globals.css",
+        "frontend/components/AppShell.tsx",
+        "frontend/components/TopNav.tsx"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T183539Z",
+          "note": "PRism’s shared visual theme now uses Brainfloss-inspired coral (#ed5148), warm off-white surfaces, and dark ink across public and signed-in screens, while green/amber/red remain reserved for review semantics.",
+          "at": "2026-09-27T00:26:29.503271+05:30"
+        }
+      ],
+      "created": "2026-09-27T00:26:29.503271+05:30",
+      "updated": "2026-09-27T00:26:29.503271+05:30"
+    },
+    "frontend.design.monochrome-light": {
+      "key": "frontend.design.monochrome-light",
+      "kind": "decision",
+      "statement": "The frontend uses a light monochrome theme (white/zinc greys, black pill CTAs, zinc-950 dark contrast sections; Inter via next/font). Semantic color is reserved for verification states: emerald=verified/accepted, amber=unverified/rejected, rose=failed/high severity, green/red tints only inside diffs. The old dark surface/indigo palette is retired; status pills, kargul-style landing structure (badge, huge headline, stats, dark facets panel, pipeline, FAQ, final CTA) are the house style.",
+      "scope": [
+        "frontend/"
+      ],
+      "status": "superseded",
+      "evidence": [
+        {
+          "session": "zcode-20260926T160126Z",
+          "note": "Revamped at user request: previous dark navy/indigo looked vibe-coded. Structure modeled on kargul.studio (status pill, oversized tight-tracked headline, pill CTAs, dark contrast panel, FAQ, big CTA footer). Verified via segmented browser screenshots; visual-judge subagent was unavailable (provider-not-found), acceptance pass done manually.",
+          "at": "2026-09-26T21:52:43.173643+05:30"
+        }
+      ],
+      "created": "2026-09-26T21:52:43.173643+05:30",
+      "updated": "2026-09-26T23:22:19.309805+05:30"
+    },
+    "frontend.design.review-workbench": {
+      "key": "frontend.design.review-workbench",
+      "kind": "decision",
+      "statement": "The signed-in PRism app uses a persistent workspace sidebar. The dashboard itself is a review workspace rather than a generic Overview: its primary review launcher leads, repository access is a sticky secondary panel on wide screens, manual URL input is progressive disclosure, and review history is a separate work area. Keep all example data explicitly synthetic.",
+      "scope": [
+        "frontend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T162625Z",
+          "note": "Implemented the approved Review Workbench / Findings Register direction and verified desktop, 390px mobile, and the 654px app viewport. Replaces the earlier monochrome landing-led layout decision.",
+          "at": "2026-09-26T23:22:19.309805+05:30"
+        },
+        {
+          "session": "cli",
+          "note": "Reworked dashboard after the signed-in surface presented an oversized generic Overview and stacked unrelated tasks without hierarchy.",
+          "at": "2026-09-26T23:43:36.360479+05:30"
+        }
+      ],
+      "created": "2026-09-26T23:22:19.309805+05:30",
+      "updated": "2026-09-26T23:43:36.360479+05:30"
+    },
+    "frontend.page-title.background": {
+      "key": "frontend.page-title.background",
+      "kind": "bug",
+      "statement": "Do not apply the workspace header surface color to every header: page title headers should remain transparent on the app canvas. Apply the light header surface only to the compact mobile shell header.",
+      "scope": [
+        "frontend/app/globals.css",
+        "frontend/components/AppShell.tsx"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "The global `.workspace-theme header` selector painted all page title regions as white cards. A dedicated `.workspace-mobile-header` class now scopes that surface to the mobile navigation.",
+          "at": "2026-09-27T01:15:55.510578+05:30"
+        }
+      ],
+      "created": "2026-09-27T01:15:55.510578+05:30",
+      "updated": "2026-09-27T01:15:55.510578+05:30"
+    },
+    "frontend.sidebar.destinations": {
+      "key": "frontend.sidebar.destinations",
+      "kind": "bug",
+      "statement": "The PRism sidebar links to purpose-specific destinations: Workspace → /dashboard, Reviews → /reviews, Repositories → /repositories, Benchmark impact → /benchmarks, and Method → /about. Review creation stays in Workspace; the Reviews page supports client-side filtering by repository, and analysis detail routes remain part of Reviews for active navigation.",
+      "scope": [
+        "frontend/app/dashboard/",
+        "frontend/app/new-review/",
+        "frontend/app/repositories/",
+        "frontend/app/reviews/",
+        "frontend/components/AppShell.tsx"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "The prior New review, Reviews, and Repositories links were dashboard hash anchors, so each kept users inside the workspace instead of opening its own page. Dedicated routes were added and exercised in the local browser.",
+          "at": "2026-09-27T01:05:22.583853+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "Follow-up removed the separate /new-review page and sidebar item at the user's direction, moved review creation back under Workspace, and added a repository filter plus larger padding to review cards.",
+          "at": "2026-09-27T01:10:47.084219+05:30"
+        }
+      ],
+      "created": "2026-09-27T01:05:22.583853+05:30",
+      "updated": "2026-09-27T01:10:47.084219+05:30"
+    },
+    "frontend.stack": {
+      "key": "frontend.stack",
+      "kind": "decision",
+      "statement": "The frontend is Next.js 14 App Router + TypeScript + Tailwind in frontend/, cookie-authenticated (credentials: include) against the FastAPI backend on :8000. Live progress uses fetch-based SSE (lib/sse.ts with a 30s stall watchdog and polling fallback); citations link into a client-parsed unified diff (lib/diff.ts); tests are vitest + Testing Library run with `npm test`, typecheck with `npm run typecheck`.",
+      "scope": [
+        ".",
+        "frontend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "zcode-20260926T141026Z",
+          "note": "Supersedes stack.pending: the stack was later fixed in plan.md (Next.js 14 + Tailwind, FastAPI) and is now implemented.",
+          "at": "2026-09-26T20:44:35.575895+05:30"
+        }
+      ],
+      "created": "2026-09-26T20:44:35.575895+05:30",
+      "updated": "2026-09-26T20:44:35.575895+05:30"
+    },
+    "frontend.testing.jsdom-url-validation": {
+      "key": "frontend.testing.jsdom-url-validation",
+      "kind": "fact",
+      "statement": "jsdom 24 enforces native constraint validation: clicking submit on a form whose type=url input holds a malformed URL never fires the submit event, so dashboard tests exercise client-side pattern errors with a syntactically valid but non-GitHub-PR URL instead.",
+      "scope": [
+        "frontend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "zcode-20260926T141026Z",
+          "note": "jsdom 24 enforces native constraint validation on type=url inputs, so submit-button tests must use a syntactically valid but wrong URL (e.g. GitLab) to exercise client-side pattern errors.",
+          "at": "2026-09-26T20:44:56.261836+05:30"
+        }
+      ],
+      "created": "2026-09-26T20:44:56.261836+05:30",
+      "updated": "2026-09-26T20:44:56.261836+05:30"
     },
     "gemini.response-schema.compatibility": {
       "key": "gemini.response-schema.compatibility",
@@ -289,10 +557,49 @@
       "created": "2026-09-26T17:40:52.943976+05:30",
       "updated": "2026-09-26T17:40:52.943976+05:30"
     },
+    "github.app.actions-permission": {
+      "key": "github.app.actions-permission",
+      "kind": "decision",
+      "statement": "To download CI coverage artifacts from GitHub Actions, the GitHub App needs actions:read permission. This is not yet approved; coverage artifacts must be supplied out-of-band (e.g. uploaded by CI via the PRism API) rather than fetched automatically. Do not add actions:read without explicit developer approval.",
+      "scope": [
+        "backend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T18:10:38.396373+05:30"
+        }
+      ],
+      "created": "2026-09-26T18:10:38.396373+05:30",
+      "updated": "2026-09-26T18:10:38.396373+05:30"
+    },
+    "github.app.permissions": {
+      "key": "github.app.permissions",
+      "kind": "decision",
+      "statement": "GitHub App tokens retain pull_requests:read and contents:read. Analysis fetches bounded changed Python source at the exact PR head using contents:read; CI coverage arrives out-of-band through the verified GitHub Actions OIDC upload API, so actions:read is not required.",
+      "scope": [
+        "backend/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-26T18:10:33.983071+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T114859Z",
+          "note": "Updated after wiring source enrichment and OIDC coverage upload; GitHub App permissions were not expanded.",
+          "at": "2026-09-26T19:30:40.406105+05:30"
+        }
+      ],
+      "created": "2026-09-26T18:10:33.983071+05:30",
+      "updated": "2026-09-26T19:30:40.406105+05:30"
+    },
     "github.auth": {
       "key": "github.auth",
       "kind": "decision",
-      "statement": "GitHub PR fetching uses a GitHub App, not a long-lived personal access token. Configure the App ID and local private-key path; mint a short-lived installation token scoped to the requested repository with read-only Pull requests and Contents permissions. Users must install the App on the repositories PRism should access.",
+      "statement": "GitHub PR ingestion uses the PRism GitHub App's short-lived repository-scoped installation token with read-only Pull requests and Contents permissions. Interactive user sign-in is implemented separately through the same App's OAuth client ID, client secret, and registered callback URL; local sign-in remains unavailable until those OAuth settings and session/token-encryption secrets are configured.",
       "scope": [
         "backend/"
       ],
@@ -307,10 +614,106 @@
           "session": "codex-mcp-client-20260926T095929Z",
           "note": "The API currently accepts a PR URL after the App is installed on its repository; an interactive per-user GitHub OAuth/connect flow is a separate future frontend/auth feature.",
           "at": "2026-09-26T15:40:37.051622+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T152246Z",
+          "note": "Verified local backend configuration after the client secret was added: all required auth settings are set, and GET /auth/github/login returns a 302 redirect to github.com/login/oauth/authorize with state and PKCE parameters.",
+          "at": "2026-09-26T20:58:17.96212+05:30"
         }
       ],
       "created": "2026-09-25T22:15:09.884239+05:30",
-      "updated": "2026-09-26T15:40:37.051622+05:30"
+      "updated": "2026-09-26T20:58:17.96212+05:30"
+    },
+    "github.installation.browser-navigation": {
+      "key": "github.installation.browser-navigation",
+      "kind": "bug",
+      "statement": "For an existing GitHub App installation, Add repositories must open the installation's GitHub settings URL directly because GET /auth/github/install auto-links the existing install and redirects back to PRism. First-time connections should use a normal browser navigation to /auth/github/install so its cross-origin 302 is followed reliably.",
+      "scope": [
+        "frontend/app/dashboard/page.tsx",
+        "frontend/app/repositories/page.tsx",
+        "frontend/lib/api.ts"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "The repository connect control previously depended on a cross-origin manual fetch redirect. It now uses a normal anchor navigation; the shared dashboard helper also performs a direct navigation.",
+          "at": "2026-09-27T01:15:55.516212+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "Verified the old Add repositories action returned to Workspace. The updated link now opens the specific PRism installation settings page; GitHub displays its normal reauthentication checkpoint before the user can manage repository access.",
+          "at": "2026-09-27T01:20:46.524143+05:30"
+        }
+      ],
+      "created": "2026-09-27T01:15:55.516212+05:30",
+      "updated": "2026-09-27T01:20:46.524143+05:30"
+    },
+    "github.installation.existing-link": {
+      "key": "github.installation.existing-link",
+      "kind": "bug",
+      "statement": "When a GitHub App was already installed before PRism started its account-scoped installation flow, GitHub opened the existing installation settings and skipped the setup callback if no repository selection changed, leaving the PRism user-installation association empty. The connect endpoint now discovers an unambiguous existing installation via the signed-in user's GitHub token and links it only after verifying user visibility and App ownership.",
+      "scope": [
+        "backend/app/routers/auth.py"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T152246Z",
+          "note": "Confirmed with the user's installed PR Review - PRism App: the database had zero installation links; after the connect flow update, the dashboard displayed the linked Amaan-Khan14 installation and the association persisted.",
+          "at": "2026-09-26T21:25:51.909676+05:30"
+        }
+      ],
+      "created": "2026-09-26T21:25:51.909676+05:30",
+      "updated": "2026-09-26T21:25:51.909676+05:30"
+    },
+    "github.pr-picker": {
+      "key": "github.pr-picker",
+      "kind": "decision",
+      "statement": "The dashboard can browse open pull requests from a selected connected repository using a repository-scoped, pull_requests:read GitHub App installation token. The PR picker submits the selected PR's canonical URL through the existing analysis flow, while manual URL entry remains available.",
+      "scope": [
+        "backend/app/routers/auth.py",
+        "frontend/app/dashboard/page.tsx",
+        "frontend/lib/api.ts",
+        "frontend/lib/types.ts"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T152246Z",
+          "note": "Implemented an authenticated installation-scoped PR listing endpoint and repository/PR selectors; frontend typecheck and backend syntax compilation passed.",
+          "at": "2026-09-26T21:40:43.818583+05:30"
+        }
+      ],
+      "created": "2026-09-26T21:40:43.818583+05:30",
+      "updated": "2026-09-26T21:40:43.818583+05:30"
+    },
+    "github.repository-listing.ui": {
+      "key": "github.repository-listing.ui",
+      "kind": "decision",
+      "statement": "The Repositories page fetches and lists actual repositories from GitHub's user-installations repositories endpoint, grouped by installation account. Use the workspace's page-header rhythm and padded white panel, with loading, access-error, empty-installation, and empty-repository states.",
+      "scope": [
+        "backend/app/routers/auth.py",
+        "frontend/app/dashboard/page.tsx",
+        "frontend/app/repositories/",
+        "frontend/lib/api.ts",
+        "frontend/lib/types.ts"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "codex-mcp-client-20260926T152246Z",
+          "note": "Added a cookie-authenticated endpoint and dashboard repository list; Safari now shows Amaan-Khan14/codedocket and Amaan-Khan14/human-simulator for the linked installation.",
+          "at": "2026-09-26T21:30:47.487821+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "Confirmed on the signed-in /repositories page: repository names and public/private status render under the account, and the page uses the standard shell header and padded panel.",
+          "at": "2026-09-27T01:26:23.786742+05:30"
+        }
+      ],
+      "created": "2026-09-26T21:30:47.487821+05:30",
+      "updated": "2026-09-27T01:26:23.786742+05:30"
     },
     "llm.provider": {
       "key": "llm.provider",
@@ -420,7 +823,7 @@
     "review.pipeline": {
       "key": "review.pipeline",
       "kind": "decision",
-      "statement": "PRism uses a deterministic facts engine before any LLM reasoning, then four parallel review facets, a deterministic evidence gate, and a risk-ordered reviewer brief. Exact diff lines, coverage, and dependency edges must come from executable code rather than LLM guesses.",
+      "statement": "PRism runs facet-focused prompts over deterministic PRFacts and the raw diff, retries transient provider failures with a configured fallback, and validates citations against facts before displaying findings. It skips cross-file analysis when no dependency edges exist and coverage analysis when no uncovered changed lines exist; prompts require concise summaries, minimal causal citations, and API-contract checks for framework-dependent claims.",
       "scope": [
         "."
       ],
@@ -429,10 +832,20 @@
         {
           "session": "codex-mcp-client-20260925T162135Z",
           "at": "2026-09-25T21:52:25.908094+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "Benchmark and live demo update: an authored timer fixture initially produced a false negative, then the revised risk prompt found it with an exact verified citation. The connected human-simulator#2 diff correctly has no supported timer bug because its setter cancels and re-arms the active timer; the pasted prior JSON was codedocket#2 and included an unsupported lock-file-leak finding plus malformed coverage citations.",
+          "at": "2026-09-27T02:47:24.92221+05:30"
+        },
+        {
+          "session": "codex-mcp-client-20260926T192834Z",
+          "note": "A Human Simulator run initially failed because Gemini returned an incomplete dependency citation for a facet with no edges. Skipping evidence-less cross-file work removed the failure. Final run of human-simulator#2 completed with no supported defects; the timer implementation already cancels/re-arms, and Electron radio items manage their checked state.",
+          "at": "2026-09-27T02:57:09.652174+05:30"
         }
       ],
       "created": "2026-09-25T21:52:25.908094+05:30",
-      "updated": "2026-09-25T21:52:25.908094+05:30"
+      "updated": "2026-09-27T02:57:09.652174+05:30"
     },
     "runtime.agent": {
       "key": "runtime.agent",
@@ -482,6 +895,23 @@
       "created": "2026-09-26T02:47:40.564794+05:30",
       "updated": "2026-09-26T17:35:00.633416+05:30"
     },
+    "sample.corpus": {
+      "key": "sample.corpus",
+      "kind": "fact",
+      "statement": "The authored synthetic shop corpus lives in sample_repo/ and deterministically rebuilds one base commit plus six case branches/patches with exact citation lines and local LCOV coverage artifacts. The branches are published as PRs #1-#6 in Amaan-Khan14/prism-synthetic-shop; each remote base/head SHA matches artifacts/manifest.json.",
+      "scope": [
+        "sample_repo/"
+      ],
+      "status": "active",
+      "evidence": [
+        {
+          "session": "cli",
+          "at": "2026-09-27T03:09:39.59896+05:30"
+        }
+      ],
+      "created": "2026-09-27T03:09:39.59896+05:30",
+      "updated": "2026-09-27T03:09:39.59896+05:30"
+    },
     "stack.confirmed": {
       "key": "stack.confirmed",
       "kind": "decision",
@@ -510,7 +940,7 @@
       "scope": [
         "."
       ],
-      "status": "active",
+      "status": "superseded",
       "evidence": [
         {
           "session": "codex-mcp-client-20260925T162135Z",
@@ -518,7 +948,7 @@
         }
       ],
       "created": "2026-09-25T21:52:25.930979+05:30",
-      "updated": "2026-09-25T21:52:25.930979+05:30"
+      "updated": "2026-09-26T20:44:35.575895+05:30"
     },
     "storage.artifact": {
       "key": "storage.artifact",
@@ -637,6 +1067,24 @@
       "from": "runtime.review.orchestration",
       "to": "llm.provider",
       "at": "2026-09-26T02:47:40.564794+05:30"
+    },
+    {
+      "type": "supersedes",
+      "from": "facts.coverage.implementation",
+      "to": "facts.coverage.stub",
+      "at": "2026-09-26T18:28:44.861776+05:30"
+    },
+    {
+      "type": "supersedes",
+      "from": "frontend.stack",
+      "to": "stack.pending",
+      "at": "2026-09-26T20:44:35.575895+05:30"
+    },
+    {
+      "type": "supersedes",
+      "from": "frontend.design.review-workbench",
+      "to": "frontend.design.monochrome-light",
+      "at": "2026-09-26T23:22:19.309805+05:30"
     }
   ]
 }
