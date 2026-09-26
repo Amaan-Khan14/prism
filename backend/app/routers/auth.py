@@ -165,14 +165,201 @@ async def logout() -> Response:
     return response
 
 
+@router.get("/github/installations/{installation_id}/repositories")
+async def list_installation_repositories(
+    installation_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """List repositories granted to an installation linked to this user."""
+    linked = await db.scalar(
+        select(GitHubInstallation.id)
+        .join(GitHubInstallation.users)
+        .where(GitHubInstallation.id == installation_id, User.id == user.id)
+    )
+    if linked is None:
+        raise HTTPException(404, "Connected GitHub installation not found.")
+
+    access_token = await get_github_user_token(db, user)
+    url = f"{settings.github_api_url.rstrip('/')}/user/installations/{installation_id}/repositories?per_page=100"
+    try:
+        async with httpx.AsyncClient(timeout=settings.github_request_timeout_seconds) as client:
+            response = await client.get(url, headers=github_headers(access_token))
+    except httpx.HTTPError as exc:
+        logger.warning("Could not list repositories for installation %s: %s", installation_id, type(exc).__name__)
+        raise HTTPException(502, "Could not load repositories from GitHub.") from exc
+
+    if response.status_code in (401, 403, 404):
+        raise HTTPException(403, "Your GitHub account cannot access this installation's repositories.")
+    if response.status_code >= 400:
+        raise HTTPException(502, "GitHub could not load this installation's repositories.")
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise HTTPException(502, "GitHub returned an invalid repositories response.") from exc
+    repositories = payload.get("repositories") if isinstance(payload, dict) else None
+    total_count = payload.get("total_count") if isinstance(payload, dict) else None
+    if not isinstance(repositories, list) or not isinstance(total_count, int):
+        raise HTTPException(502, "GitHub returned an invalid repositories response.")
+
+    return {
+        "total_count": total_count,
+        "repositories": [
+            {
+                "id": repository["id"],
+                "full_name": repository["full_name"],
+                "html_url": repository["html_url"],
+                "private": repository["private"],
+            }
+            for repository in repositories
+            if isinstance(repository, dict)
+            and isinstance(repository.get("id"), int)
+            and isinstance(repository.get("full_name"), str)
+            and isinstance(repository.get("html_url"), str)
+            and isinstance(repository.get("private"), bool)
+        ],
+    }
+
+
+@router.get("/github/installations/{installation_id}/pull-requests")
+async def list_installation_pull_requests(
+    installation_id: int,
+    repository: str = Query(),
+    state: str = Query(default="open", pattern="^(open|closed|all)$"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """List pull requests from a repository accessible to a linked installation."""
+    linked = await db.scalar(
+        select(GitHubInstallation.id)
+        .join(GitHubInstallation.users)
+        .where(GitHubInstallation.id == installation_id, User.id == user.id)
+    )
+    if linked is None:
+        raise HTTPException(404, "Connected GitHub installation not found.")
+
+    parts = repository.split("/")
+    if (
+        len(parts) != 2
+        or any(not part or part in {".", ".."} for part in parts)
+        or any(not all(char.isalnum() or char in "._-" for char in part) for part in parts)
+    ):
+        raise HTTPException(422, "Repository must be in owner/repository format.")
+    owner, repo_name = parts
+
+    try:
+        app_jwt = GitHubIngestion._app_jwt()
+    except GitHubIngestionError as exc:
+        raise HTTPException(exc.status_code, exc.detail) from exc
+
+    api = settings.github_api_url.rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=settings.github_request_timeout_seconds) as client:
+            token_response = await client.post(
+                f"{api}/app/installations/{installation_id}/access_tokens",
+                headers=github_headers(app_jwt),
+                json={"repositories": [repo_name], "permissions": {"pull_requests": "read"}},
+            )
+            if token_response.status_code in (401, 403, 404):
+                raise HTTPException(403, "The connected GitHub App cannot access this repository.")
+            if token_response.status_code >= 400:
+                raise HTTPException(502, "GitHub could not create a repository access token.")
+            token_payload = token_response.json()
+            token = token_payload.get("token") if isinstance(token_payload, dict) else None
+            if not isinstance(token, str) or not token:
+                raise HTTPException(502, "GitHub returned an invalid installation token.")
+
+            response = await client.get(
+                f"{api}/repos/{owner}/{repo_name}/pulls",
+                params={"state": state, "sort": "updated", "direction": "desc", "per_page": 100},
+                headers=github_headers(token),
+            )
+    except HTTPException:
+        raise
+    except httpx.HTTPError as exc:
+        logger.warning("Could not list pull requests for %s: %s", repository, type(exc).__name__)
+        raise HTTPException(502, "Could not load pull requests from GitHub.") from exc
+
+    if response.status_code in (401, 403, 404):
+        raise HTTPException(403, "The connected GitHub App cannot access this repository's pull requests.")
+    if response.status_code >= 400:
+        raise HTTPException(502, "GitHub could not load this repository's pull requests.")
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise HTTPException(502, "GitHub returned an invalid pull request response.") from exc
+    if not isinstance(payload, list):
+        raise HTTPException(502, "GitHub returned an invalid pull request response.")
+
+    return {
+        "pull_requests": [
+            {
+                "number": item["number"],
+                "title": item["title"],
+                "state": item["state"],
+                "draft": item["draft"],
+                "html_url": item["html_url"],
+                "updated_at": item["updated_at"],
+            }
+            for item in payload
+            if isinstance(item, dict)
+            and isinstance(item.get("number"), int)
+            and isinstance(item.get("title"), str)
+            and item.get("state") in {"open", "closed"}
+            and isinstance(item.get("draft"), bool)
+            and isinstance(item.get("html_url"), str)
+            and isinstance(item.get("updated_at"), str)
+        ],
+        "has_more": 'rel="next"' in response.headers.get("Link", ""),
+    }
+
+
 @router.get("/github/install")
 async def start_install(
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     if not settings.github_app_slug:
         raise HTTPException(503, "GITHUB_APP_SLUG is not configured.")
     if not settings.auth_session_secret or len(settings.auth_session_secret) < 32:
         raise HTTPException(503, "Authentication is not configured.")
+
+    # The GitHub install URL does not reliably invoke the setup callback when
+    # the App is already installed and no repository settings change. Detect
+    # that case and link the existing installation directly after verifying
+    # it with both the user's token and this GitHub App's JWT.
+    if settings.github_app_id:
+        access_token = await get_github_user_token(db, user)
+        api = settings.github_api_url.rstrip("/")
+        try:
+            async with httpx.AsyncClient(timeout=settings.github_request_timeout_seconds) as client:
+                result = await client.get(
+                    f"{api}/user/installations?per_page=100",
+                    headers=github_headers(access_token),
+                )
+        except httpx.HTTPError as exc:
+            logger.warning("Could not list GitHub installations for existing App link: %s", type(exc).__name__)
+            raise HTTPException(502, "Could not check your existing GitHub App installations.") from exc
+        if result.status_code != 200:
+            raise HTTPException(502, "Could not check your existing GitHub App installations.")
+        payload = result.json()
+        installations = payload.get("installations") if isinstance(payload, dict) else None
+        if not isinstance(installations, list):
+            raise HTTPException(502, "GitHub returned an invalid installations response.")
+        matching_ids = [
+            item["id"]
+            for item in installations
+            if isinstance(item, dict)
+            and str(item.get("app_id")) == settings.github_app_id
+            and isinstance(item.get("id"), int)
+        ]
+        if len(matching_ids) == 1:
+            await _link_installation(db, user, matching_ids[0], access_token)
+            return RedirectResponse(
+                f"{settings.auth_frontend_url.rstrip('/')}?github_app=connected",
+                status_code=303,
+            )
+
     now = int(time.time())
     install_state = jwt.encode(
         {"sub": str(user.id), "iss": "prism", "aud": "github-install", "iat": now, "exp": now + 600},
@@ -207,6 +394,16 @@ async def finish_install(
         raise HTTPException(403, "This GitHub installation flow belongs to another PRism account.")
 
     access_token = await get_github_user_token(db, user)
+    await _link_installation(db, user, installation_id, access_token)
+    return RedirectResponse(f"{settings.auth_frontend_url.rstrip('/')}?github_app=connected", status_code=303)
+
+
+async def _link_installation(
+    db: AsyncSession,
+    user: User,
+    installation_id: int,
+    access_token: str,
+) -> None:
     await verify_installation_for_user(access_token, installation_id)
     try:
         app_jwt = GitHubIngestion._app_jwt()
@@ -243,7 +440,6 @@ async def finish_install(
     if installation not in user.installations:
         user.installations.append(installation)
     await db.commit()
-    return RedirectResponse(f"{settings.auth_frontend_url.rstrip('/')}?github_app=connected", status_code=303)
 
 
 @router.delete("/github/installations/{installation_id}", status_code=204)

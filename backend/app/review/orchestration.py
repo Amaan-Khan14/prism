@@ -2,16 +2,24 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import uuid
 from dataclasses import asdict
 
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import selectinload
 
 from app.database import AsyncSessionLocal
 from app.facts import compute_facts
+from app.facts.coverage_intake import (
+    AcceptedCoverage,
+    CIRunMetadata,
+    CoverageArtifact,
+    RejectedCoverage,
+    accept_coverage,
+)
 from app.facts.models import PRFacts
 from app.gate import (
     CitationCheck,
@@ -23,6 +31,7 @@ from app.gate import (
 from app.models import (
     Analysis,
     AnalysisStatus,
+    CoverageArtifactRecord,
     Facet,
     FacetKind,
     FacetStatus,
@@ -253,6 +262,7 @@ async def execute_analysis(
             pr_number = pr.pr_number
             head_sha = pr.head_sha
             base_sha = pr.base_sha
+            github_installation_id = pr.github_installation_id
             await db.commit()
 
         store = get_artifact_store()
@@ -278,7 +288,74 @@ async def execute_analysis(
         bundle.base_sha = base_sha
         if not bundle.patches:
             raise RuntimeError("The supplied diff contains no parseable file changes.")
-        facts = compute_facts(bundle)
+        bundle.github_installation_id = github_installation_id
+        source_map: dict[str, str] = {}
+        if repo_full_name and head_sha and github_installation_id is not None:
+            try:
+                from app.ingestion import GitHubIngestion
+
+                source_map = await GitHubIngestion().fetch_changed_python_sources(
+                    repo_full_name,
+                    head_sha,
+                    github_installation_id,
+                    [patch.path for patch in bundle.patches],
+                )
+            except Exception:
+                logger.exception("changed source enrichment failed for analysis %s", analysis_id)
+        coverage_record = None
+        if repo_full_name and head_sha:
+            async with AsyncSessionLocal() as db:
+                coverage_result = await db.execute(
+                    select(CoverageArtifactRecord)
+                    .where(
+                        CoverageArtifactRecord.repo_full_name == repo_full_name.lower(),
+                        CoverageArtifactRecord.commit_sha == head_sha.lower(),
+                    )
+                    .order_by(desc(CoverageArtifactRecord.created_at))
+                    .limit(1)
+                )
+                coverage_record = coverage_result.scalar_one_or_none()
+
+        accepted_coverage: AcceptedCoverage | None = None
+        rejected_coverage: RejectedCoverage | None = None
+        coverage_artifact: CoverageArtifact | None = None
+        if coverage_record is not None:
+            try:
+                raw_coverage = await asyncio.to_thread(store.get, coverage_record.storage_key)
+                if hashlib.sha256(raw_coverage).hexdigest() != coverage_record.artifact_sha256:
+                    rejected_coverage = RejectedCoverage(
+                        "Stored coverage artifact failed its SHA-256 integrity check."
+                    )
+                else:
+                    coverage_artifact = CoverageArtifact(
+                        raw=raw_coverage,
+                        format=coverage_record.format,
+                        metadata=CIRunMetadata(
+                            commit_sha=coverage_record.commit_sha,
+                            ci_provider="github_actions",
+                            run_id=coverage_record.run_id,
+                            artifact_name=coverage_record.artifact_name,
+                            run_attempt=coverage_record.run_attempt,
+                        ),
+                    )
+                    intake_result = accept_coverage(coverage_artifact, head_sha)
+                    if isinstance(intake_result, AcceptedCoverage):
+                        accepted_coverage = intake_result
+                    else:
+                        rejected_coverage = intake_result
+            except Exception:
+                logger.exception("coverage artifact could not be loaded for analysis %s", analysis_id)
+                rejected_coverage = RejectedCoverage(
+                    "Stored coverage artifact could not be read from artifact storage."
+                )
+
+        facts = compute_facts(
+            bundle,
+            file_source_map=source_map,
+            coverage_artifact=coverage_artifact if accepted_coverage is None and rejected_coverage is None else None,
+            accepted_coverage=accepted_coverage,
+            rejected_coverage=rejected_coverage,
+        )
         facts_bytes = json.dumps(
             _facts_to_dict(facts), ensure_ascii=False, separators=(",", ":")
         ).encode("utf-8")
@@ -296,6 +373,48 @@ async def execute_analysis(
             if analysis is None:
                 return
             analysis.facts_storage_key = stored_facts.key
+            if coverage_record is None:
+                analysis.coverage_status = "none"
+                analysis.coverage_rejection_reason = None
+                analysis.coverage_format = None
+                analysis.coverage_ci_provider = None
+                analysis.coverage_run_id = None
+                analysis.coverage_run_attempt = None
+                analysis.coverage_artifact_name = None
+                analysis.coverage_commit_sha = None
+                analysis.coverage_artifact_sha256 = None
+                analysis.coverage_parsed_at = None
+                analysis.coverage_file_count = None
+                analysis.coverage_parser_warnings = []
+            elif accepted_coverage is not None:
+                provenance = accepted_coverage.provenance
+                analysis.coverage_status = "accepted"
+                analysis.coverage_rejection_reason = None
+                analysis.coverage_format = provenance.format
+                analysis.coverage_ci_provider = provenance.ci_provider
+                analysis.coverage_run_id = provenance.run_id
+                analysis.coverage_run_attempt = provenance.run_attempt
+                analysis.coverage_artifact_name = provenance.artifact_name
+                analysis.coverage_commit_sha = provenance.commit_sha
+                analysis.coverage_artifact_sha256 = provenance.artifact_sha256
+                analysis.coverage_parsed_at = provenance.parsed_at
+                analysis.coverage_file_count = provenance.file_count
+                analysis.coverage_parser_warnings = provenance.parser_warnings
+            else:
+                analysis.coverage_status = "rejected"
+                analysis.coverage_rejection_reason = (
+                    rejected_coverage.reason if rejected_coverage else "Coverage artifact was unavailable."
+                )
+                analysis.coverage_format = coverage_record.format
+                analysis.coverage_ci_provider = "github_actions"
+                analysis.coverage_run_id = coverage_record.run_id
+                analysis.coverage_run_attempt = coverage_record.run_attempt
+                analysis.coverage_artifact_name = coverage_record.artifact_name
+                analysis.coverage_commit_sha = coverage_record.commit_sha
+                analysis.coverage_artifact_sha256 = coverage_record.artifact_sha256
+                analysis.coverage_parsed_at = None
+                analysis.coverage_file_count = None
+                analysis.coverage_parser_warnings = []
             await db.commit()
 
         active_provider = provider or get_review_provider()

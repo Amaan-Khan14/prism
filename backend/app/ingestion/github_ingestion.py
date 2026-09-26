@@ -5,7 +5,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 import httpx
 import jwt
@@ -16,6 +16,7 @@ from app.ingestion.diff_parser import parse_diff
 
 logger = logging.getLogger(__name__)
 _MAX_DIFF_BYTES = 20 * 1024 * 1024
+_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 
 class GitHubIngestionError(Exception):
@@ -211,3 +212,55 @@ class GitHubIngestion:
             pr_number=pr_number,
             github_installation_id=installation_id,
         )
+
+    async def fetch_changed_python_sources(
+        self,
+        repo_full_name: str,
+        commit_sha: str,
+        installation_id: int,
+        paths: list[str],
+    ) -> dict[str, str]:
+        """Fetch bounded changed Python files at the exact PR head revision.
+
+        The installation token is limited to this repository and Contents
+        read. Missing or oversized files are skipped so source enrichment
+        cannot make an otherwise valid diff review fail.
+        """
+        if not _SHA_RE.fullmatch(commit_sha or ""):
+            return {}
+        normalized_paths = list(dict.fromkeys(p for p in paths if p.endswith(".py")))[:100]
+        if not normalized_paths:
+            return {}
+        owner, repo_name = repo_full_name.split("/", 1)
+        app_jwt = self._app_jwt()
+        api = settings.github_api_url.rstrip("/")
+        timeout = httpx.Timeout(settings.github_request_timeout_seconds)
+        source_map: dict[str, str] = {}
+        try:
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+                token_response = await client.post(
+                    f"{api}/app/installations/{installation_id}/access_tokens",
+                    headers=self._headers(app_jwt),
+                    json={"repositories": [repo_name], "permissions": {"contents": "read"}},
+                )
+                self._raise_for_github_error(token_response)
+                token_payload = token_response.json()
+                token = token_payload.get("token") if isinstance(token_payload, dict) else None
+                if not isinstance(token, str) or not token:
+                    raise GitHubIngestionError(502, "GitHub did not return an installation token.")
+                for path in normalized_paths:
+                    if path.startswith("/") or ".." in path.split("/"):
+                        continue
+                    response = await client.get(
+                        f"{api}/repos/{owner}/{repo_name}/contents/{quote(path, safe='/')}?ref={commit_sha}",
+                        headers=self._headers(token, "application/vnd.github.raw+json"),
+                    )
+                    if response.status_code >= 400 or len(response.content) > 1_000_000:
+                        continue
+                    try:
+                        source_map[path] = response.content.decode("utf-8")
+                    except UnicodeDecodeError:
+                        continue
+        except (GitHubIngestionError, httpx.HTTPError, ValueError, TypeError):
+            logger.info("Changed source enrichment unavailable for %s@%s", repo_full_name, commit_sha[:8])
+        return source_map

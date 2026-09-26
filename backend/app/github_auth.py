@@ -222,3 +222,7 @@ def oauth_authorize_url(state: str, verifier: str) -> str:
         "code_challenge_method": "S256",
     })
     return f"https://github.com/login/oauth/authorize?{query}"
+
+
+# Backward-compatible alias so auth.py can import either name.
+get_github_user = github_get_user

@@ -8,9 +8,9 @@ import logging
 import uuid
 from typing import AsyncIterator
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -19,7 +19,12 @@ from app.ingestion import FileIngestion, GitHubIngestion
 from app.ingestion.github_ingestion import GitHubIngestionError
 from app.github_auth import assert_user_can_access_repo, get_current_user, get_github_user_token, require_csrf_origin
 from app.models import Analysis, AnalysisStatus, Facet, FacetKind, FacetStatus, PR, User
-from app.schemas import AnalysisOut, CreateAnalysisRequest, CreateAnalysisResponse
+from app.schemas import (
+    AnalysisListItem,
+    AnalysisOut,
+    CreateAnalysisRequest,
+    CreateAnalysisResponse,
+)
 from app.storage import diff_key, get_artifact_store
 from app.review.orchestration import FACET_ORDER, execute_analysis
 
@@ -204,6 +209,30 @@ async def _try_delete_orphaned_artifact(storage_key: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# GET /analyses
+# ---------------------------------------------------------------------------
+
+
+@router.get("", response_model=list[AnalysisListItem])
+async def list_analyses(
+    limit: int = Query(default=50, gt=0, le=200),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[AnalysisListItem]:
+    """Return the signed-in user's analyses, newest first, with PR metadata."""
+    result = await db.execute(
+        select(Analysis)
+        .join(Analysis.pr)
+        .where(PR.user_id == user.id)
+        .options(selectinload(Analysis.pr))
+        .order_by(desc(Analysis.created_at))
+        .limit(limit)
+    )
+    analyses = result.scalars().all()
+    return [AnalysisListItem.model_validate(item) for item in analyses]
+
+
+# ---------------------------------------------------------------------------
 # GET /analyses/{id}
 # ---------------------------------------------------------------------------
 
@@ -220,7 +249,8 @@ async def get_analysis(
         .join(Analysis.pr)
         .where(Analysis.id == analysis_id, PR.user_id == user.id)
         .options(
-            selectinload(Analysis.facets).selectinload(Facet.findings)
+            selectinload(Analysis.facets).selectinload(Facet.findings),
+            selectinload(Analysis.pr),
         )
     )
     analysis = result.scalar_one_or_none()
