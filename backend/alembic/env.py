@@ -15,9 +15,6 @@ from app.config import settings  # noqa: E402
 
 config = context.config
 
-# Override the URL from settings so .env files are respected.
-config.set_main_option("sqlalchemy.url", settings.database_url)
-
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
@@ -25,7 +22,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
+    url = settings.database_url
     context.configure(
         url=url,
         target_metadata=target_metadata,

@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: PRism demo API on EC2 with private single-AZ PostgreSQL RDS and scoped artifact access.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: Dedicated PRism VPC, one public API EC2 instance, private RDS, existing private S3 bucket.
+    must:
+      - Limit resources and permissions to PRism.
+      - Keep PostgreSQL inaccessible from the internet.
+      - Preserve the database on stack deletion.
+    owner: PRism
+
+Parameters:
+  ArtifactBucket:
+    Type: String
+    Description: Existing PRism artifact bucket.
+  BackendAmi:
+    Type: AWS::EC2::Image::Id
+    Description: Ubuntu 24.04 arm64 AMI in ap-south-1.
+  ApiAllocationId:
+    Type: String
+    Description: Elastic IP allocation from the PRism IP stack.
+  ApiPublicIp:
+    Type: String
+    Description: Elastic IP address from the PRism IP stack.
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Isolates all PRism compute and database traffic from unrelated account workloads.
+        must: [Use only PRism resources.]
+        trust: {src: authored, conf: high}
+    Properties:
+      CidrBlock: 10.81.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags: [{Key: Name, Value: prism-vpc}, {Key: Project, Value: PRism}]
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags: [{Key: Name, Value: prism-igw}, {Key: Project, Value: PRism}]
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.81.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags: [{Key: Name, Value: prism-api-public}, {Key: Project, Value: PRism}]
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.81.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags: [{Key: Name, Value: prism-db-private-a}, {Key: Project, Value: PRism}]
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.81.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags: [{Key: Name, Value: prism-db-private-b}, {Key: Project, Value: PRism}]
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags: [{Key: Name, Value: prism-public-routes}, {Key: Project, Value: PRism}]
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnetRoute:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  ApiSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Public HTTP and HTTPS to PRism API reverse proxy
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0}
+      Tags: [{Key: Name, Value: prism-api-sg}, {Key: Project, Value: PRism}]
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: PostgreSQL exclusively from PRism API EC2
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ApiSecurityGroup
+      Tags: [{Key: Name, Value: prism-db-sg}, {Key: Project, Value: PRism}]
+  DatabaseSubnets:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Two private AZ subnets for PRism RDS
+      SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
+      Tags: [{Key: Project, Value: PRism}]
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Durable relational metadata store for reviews, PRs, users, and analysis records.
+        must: [Keep private and encrypted., Preserve data on stack deletion.]
+        trust: {src: authored, conf: high}
+    Properties:
+      DBInstanceIdentifier: prism-db
+      Engine: postgres
+      EngineVersion: '18.6'
+      DBInstanceClass: db.t4g.micro
+      AllocatedStorage: '20'
+      StorageType: gp3
+      StorageEncrypted: true
+      DBName: prism
+      MasterUsername: prismadmin
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DatabaseSubnets
+      VPCSecurityGroups: [!Ref DatabaseSecurityGroup]
+      PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: 1
+      CopyTagsToSnapshot: true
+      DeletionProtection: true
+      AutoMinorVersionUpgrade: true
+      EnablePerformanceInsights: false
+      Tags: [{Key: Name, Value: prism-db}, {Key: Project, Value: PRism}]
+
+  ApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: prism-api-ec2
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ec2.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: prism-runtime
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ArtifactObjects
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucket}/*'
+              - Sid: AppSecret
+                Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:prism/backend-*'
+              - Sid: DatabaseSecret
+                Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !GetAtt Database.MasterUserSecret.SecretArn
+      Tags: [{Key: Project, Value: PRism}]
+  ApiInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: prism-api-ec2
+      Roles: [!Ref ApiRole]
+  ApiInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Runs the FastAPI API behind Nginx with SSM access and no inbound SSH.
+        must: [Use IMDSv2., Expose only HTTP and HTTPS.]
+        trust: {src: authored, conf: high}
+    Properties:
+      ImageId: !Ref BackendAmi
+      InstanceType: t4g.small
+      IamInstanceProfile: !Ref ApiInstanceProfile
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref ApiSecurityGroup]
+      MetadataOptions: {HttpTokens: required, HttpEndpoint: enabled}
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 16
+            VolumeType: gp3
+            Encrypted: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+          curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o /tmp/awscliv2.zip
+          apt-get update -qq
+          apt-get install -y unzip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          /tmp/aws/install
+          aws s3 cp s3://${ArtifactBucket}/releases/ec2-deploy.sh /tmp/ec2-deploy.sh --region ${AWS::Region}
+          bash /tmp/ec2-deploy.sh '${ArtifactBucket}' '${Database.Endpoint.Address}' '${Database.MasterUserSecret.SecretArn}' > /var/log/prism-deploy.log 2>&1
+      Tags: [{Key: Name, Value: prism-api}, {Key: Project, Value: PRism}]
+  ApiAddressAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref ApiInstance
+      AllocationId: !Ref ApiAllocationId
+
+Outputs:
+  ApiPublicIp:
+    Value: !Ref ApiPublicIp
+  ApiInstanceId:
+    Value: !Ref ApiInstance
+  DatabaseHost:
+    Value: !GetAtt Database.Endpoint.Address
+  DatabaseSecretArn:
+    Value: !GetAtt Database.MasterUserSecret.SecretArn
+  ApiUrl:
+    Value: https://api.amaankhan.in

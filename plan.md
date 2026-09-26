@@ -11,7 +11,7 @@ PRism already has a working application foundation and a substantial review pipe
 | GitHub | GitHub App sign-in and installation-scoped repository/PR access are implemented. Local sign-in still needs valid OAuth and session/token-encryption configuration. |
 | Frontend | Dashboard, Reviews, Repositories, Benchmarks, Method, and per-analysis report routes are implemented. The report uses in-place Findings, Evidence, Coverage, and Diff tabs. |
 | Coverage | LCOV/Cobertura parsing, head-SHA validation, provenance, and coverage artifact intake are implemented. Missing, invalid, or mismatched artifacts produce unknown coverage. |
-| Storage | Local and private S3 artifact stores are implemented. The private S3 bucket exists; the application role and hosted configuration remain pending. |
+| Storage | Local and private S3 artifact stores are implemented. The private S3 bucket and bucket-scoped EC2 runtime role are deployed; the hosted API passed an S3 write/read/delete check. |
 | Benchmarks and demo corpus | The authored shop repository and six seeded PRs are public, with reproducible branches/patches, exact commit SHAs, ground truth, and measured local coverage in `sample_repo/`. The separate two-case benchmark pilot is published; broader measured runs and human timing remain. |
 | Deployment | The target is Vercel for the frontend and AWS for the API, database, and private artifact storage. Hosted application infrastructure is not complete. |
 
@@ -43,7 +43,7 @@ The current working tree contains uncommitted application changes. Review and pr
 | 4 | Frontend analysis workflow | **Implemented; locally verified** | Keep the purpose-specific sidebar routes and repository-filtered Reviews page. On the per-analysis page, keep Findings/Evidence/Coverage/Diff in the report panel; citation actions should switch tabs and focus the cited diff location. Keep the description collapsed by default. Frontend tests and TypeScript pass; finish responsive and signed-in browser QA before release. |
 | 5 | Authored sample repository and seeded PR corpus | **Complete (2026-09-27)** | `sample_repo/` rebuilds a payments/orders/notifications Git repository with six public PRs, patches/bodies, authored specs, issue IDs, exact citation lines, base/head SHAs, and locally measured LCOV artifacts tied to each head. Remote PR SHAs match the manifest. An in-app verified coverage demo still requires a trusted GitHub Actions OIDC upload for the same head SHA. |
 | 6 | Benchmark scorer and results | **Two-case pilot published; full benchmark pending** | `backend/benchmarks/score.py` scores exact adjudicated issue IDs, evidence verification, citation accuracy, and measured elapsed time. The pilot has two authored cases. Expand measured runs to the shop corpus, capture timed human reviews, and compare across cases before making product-wide claims. |
-| 7 | Hosted deployment | **Pending** | Configure a bucket-scoped AWS runtime role and application settings for the existing private S3 bucket. Provision the PRism backend, private PostgreSQL, networking, and HTTPS ingress with project-scoped infrastructure as code. Deploy the frontend to Vercel; configure API/frontend domains, secrets, AWS OIDC deployment, health checks, logging, and a smoke checklist. Keep the database private and S3 private. Use a scoped non-root AWS identity for provisioning. |
+| 7 | Hosted deployment | **Backend live; frontend pending** | The backend is live at `https://api.amaankhan.in` on EC2 with HTTPS, private single-AZ RDS PostgreSQL, private S3, project-scoped CloudFormation, and a scoped non-root deployer. Health, browser CORS, database migration, and S3 access are verified. Deploy the frontend to Vercel at `https://prism.amaankhan.in`, set `NEXT_PUBLIC_API_URL=https://api.amaankhan.in`, update the GitHub App OAuth callback/setup URL, then complete AWS OIDC deployment and the hosted smoke checklist. The account currently permits one day of RDS automated backup retention. |
 | 8 | Product finish and handoff | **Pending** | Complete setup and architecture documentation, demo seed/reset support, demo script, deployment URLs, benchmark explanation, and release checklist. Keep `bob_sessions/README.md` current and save clearly named PNG evidence for each completed Bob IDE task as required by the project. Confirm a fresh setup can follow the documentation and run the end-to-end demo. |
 
 ## Interfaces and data rules
@@ -68,6 +68,6 @@ The current working tree contains uncommitted application changes. Review and pr
 
 - GitHub App OAuth client configuration, callback URL, and environment-specific credentials/secrets.
 - Chosen Gemini or OpenAI provider credentials and model configuration.
-- Bucket-scoped AWS runtime IAM role and hosted backend/database/network configuration.
+- Frontend deployment and production GitHub App callback/setup URL configuration.
 - Production frontend/API domains and Vercel/AWS deployment settings.
 - Broader benchmark results, trusted CI coverage upload for the sample PR demo, and remaining Bob IDE evidence.

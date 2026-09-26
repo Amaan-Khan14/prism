@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: PRism deployment role assumed from the project owner's existing AWS login.
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: Bootstrap a non-root role for provisioning the PRism demo stack.
+    must: [Use this role only for PRism stacks and resources.]
+    owner: PRism
+Resources:
+  BootstrapUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: prism-bootstrap
+      Policies:
+        - PolicyName: assume-prism-deployer-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prism-deployer'
+      Tags: [{Key: Project, Value: PRism}]
+  DeployerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: prism-deployer
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: prism-deployment
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: PrismStacks
+                Effect: Allow
+                Action: cloudformation:*
+                Resource: !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/prism-*/*'
+              - Sid: PrismInfrastructure
+                Effect: Allow
+                Action: [ec2:*, rds:*, secretsmanager:DescribeSecret]
+                Resource: '*'
+              - Sid: PrismInstanceOperations
+                Effect: Allow
+                Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations, ssm:DescribeInstanceInformation]
+                Resource: '*'
+              - Sid: ShellDocument
+                Effect: Allow
+                Action: ssm:SendCommand
+                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-RunShellScript'
+              - Sid: PrismInstanceOnly
+                Effect: Allow
+                Action: ssm:SendCommand
+                Resource: !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+                Condition:
+                  StringEquals:
+                    ssm:resourceTag/Project: PRism
+              - Sid: PrismRoles
+                Effect: Allow
+                Action: iam:*
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prism-*'
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/prism-*'
+              - Sid: CreateRdsServiceRole
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/rds.amazonaws.com/AWSServiceRoleForRDS'
+                Condition:
+                  StringEquals:
+                    iam:AWSServiceName: rds.amazonaws.com
+              - Sid: DescribeRdsAndSecretsKeys
+                Effect: Allow
+                Action: kms:DescribeKey
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/d4d4d096-4867-4d0b-bac8-322a7cbdd546'
+                  - !Sub 'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/4656ef9e-4baa-451b-a121-f0b61fac96aa'
+              - Sid: GrantRdsEncryption
+                Effect: Allow
+                Action: kms:CreateGrant
+                Resource: !Sub 'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/d4d4d096-4867-4d0b-bac8-322a7cbdd546'
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub 'rds.${AWS::Region}.amazonaws.com'
+              - Sid: PrismS3Objects
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: 'arn:aws:s3:::prism-artifact-storage-prismartifactbucket-ubri8x7giofh/*'
+              - Sid: PrismSecret
+                Effect: Allow
+                Action: [secretsmanager:CreateSecret, secretsmanager:UpdateSecret, secretsmanager:PutSecretValue, secretsmanager:TagResource]
+                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:prism/*'
+              - Sid: RdsManagedMasterSecret
+                Effect: Allow
+                Action: [secretsmanager:CreateSecret, secretsmanager:TagResource]
+                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:rds!db-*'
+              - Sid: RotatePrismDatabaseSecret
+                Effect: Allow
+                Action: secretsmanager:RotateSecret
+                Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:rds!db-5dd2c29b-6e46-4dfd-8f6a-e434b7715b95-O1DUie'
+              - Sid: DescribePrismStack
+                Effect: Allow
+                Action: [cloudformation:ListStacks, cloudformation:DescribeStacks]
+                Resource: '*'
+      Tags: [{Key: Project, Value: PRism}]
+Outputs:
+  RoleArn:
+    Value: !GetAtt DeployerRole.Arn

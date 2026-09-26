@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Stable Elastic IP for the PRism API, preserved across API stack retries.
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: Keep the public API DNS target stable while EC2 and RDS are provisioned.
+    must: [Use only for the PRism API.]
+    owner: PRism
+Resources:
+  ApiAddress:
+    Type: AWS::EC2::EIP
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Stable DNS address across database or instance stack retries.
+        must: [Associate with the PRism API EC2 instance.]
+        trust: {src: authored, conf: high}
+    Properties:
+      Domain: vpc
+      Tags: [{Key: Name, Value: prism-api-ip}, {Key: Project, Value: PRism}]
+Outputs:
+  AllocationId:
+    Value: !GetAtt ApiAddress.AllocationId
+  PublicIp:
+    Value: !Ref ApiAddress
