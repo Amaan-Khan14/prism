@@ -395,9 +395,11 @@ class TestBuildCoverageFacts:
         result = build_coverage_facts([])
         assert result == ()
 
-    def test_real_artifact_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
-            build_coverage_facts(["x.py"], coverage_artifact=object())
+    def test_no_artifact_returns_unknown(self) -> None:
+        """With no artifact, all files remain unknown (replacement for the old stub test)."""
+        result = build_coverage_facts(["x.py"], coverage_artifact=None, pr_head_sha=None)
+        assert len(result) == 1
+        assert result[0].status == CoverageStatus.unknown
 
 
 # ===========================================================================

@@ -121,12 +121,10 @@ class CoverageStatus(str, Enum):
 
 @dataclass(frozen=True)
 class FileCoverage:
-    """Coverage status for the changed lines in one file.
+    """Coverage status for changed lines in one file.
 
-    In the current milestone, status is always ``unknown`` because no
-    coverage artifact has been linked to the PR head SHA.  This struct
-    exists so the LLM agent and evidence gate can work with a typed value
-    rather than relying on the absence of a field.
+    A status other than ``unknown`` is emitted only when a validated report
+    accounts for the added lines being evaluated.
     """
 
     file_path: str
